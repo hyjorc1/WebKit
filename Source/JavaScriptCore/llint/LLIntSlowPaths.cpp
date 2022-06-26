@@ -2174,7 +2174,7 @@ ALWAYS_INLINE SlowPathReturnType llintSlowPathGetFromScopeHelper(CallFrame* call
                 return throwException(globalObject, throwScope, createTDZError(globalObject));
         }
 
-        CommonSlowPaths::tryCacheGetFromScopeGlobal(globalObject, codeBlock, vm, metadata, scope, slot, ident);
+        CommonSlowPaths::tryCacheGetFromScopeGlobal<BytecodeOpcode>(globalObject, codeBlock, vm, bytecode, scope, slot, ident);
 
         if (!result)
             return slot.getValue(globalObject, ident);
@@ -2418,7 +2418,7 @@ static void handleResolveAndGetFromScopeCheckpoint(VM& vm, CallFrame* callFrame,
                 return throwException(globalObject, throwScope, createTDZError(globalObject));
         }
 
-        CommonSlowPaths::tryCacheGetFromScopeGlobal(globalObject, codeBlock, vm, metadata, scope, slot, ident);
+        CommonSlowPaths::tryCacheGetFromScopeGlobal<OpResolveAndGetFromScope>(globalObject, codeBlock, vm, bytecode, scope, slot, ident);
 
         if (!result)
             return slot.getValue(globalObject, ident);
