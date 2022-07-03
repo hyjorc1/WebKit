@@ -2393,23 +2393,6 @@ static void handleIteratorNextCheckpoint(VM& vm, CallFrame* callFrame, JSGlobalO
         valueRegister = iteratorResultObject.get(globalObject, vm.propertyNames->value);
 }
 
-static void handleResolveAndGetFromScopeCheckpoint(VM& vm, CallFrame* callFrame, JSGlobalObject* globalObject, const OpResolveAndGetFromScope& bytecode, CheckpointOSRExitSideState& sideState)
-{
-    CodeBlock* codeBlock = callFrame->codeBlock();
-    auto throwScope = DECLARE_THROW_SCOPE(vm);
-    auto& metadata = bytecode.metadata(codeBlock);
-    const Identifier& ident = codeBlock->identifier(bytecode.m_var);
-    JSObject* scope = jsCast<JSObject*>(sideState.tmps[OpResolveAndGetFromScope::tmpResolvedScope]);
-
-    // ModuleVar is always converted to ClosureVar for get_from_scope.
-    ASSERT(metadata.m_getPutInfo.resolveType() != ModuleVar);
-
-    JSValue result = scopeGetPropertyHelper<OpResolveAndGetFromScope>(codeBlock, globalObject, vm, throwScope, bytecode, metadata, ident, scope);
-
-    throwScope.release();
-    callFrame->uncheckedR(bytecode.m_dst) = result;
-}
-
 inline SlowPathReturnType dispatchToNextInstructionDuringExit(ThrowScope& scope, CodeBlock* codeBlock, JSInstructionStream::Ref pc)
 {
     if (scope.exception())
@@ -2531,11 +2514,6 @@ extern "C" SlowPathReturnType llint_slow_path_checkpoint_osr_exit(CallFrame* cal
     }
     case op_iterator_next: {
         handleIteratorNextCheckpoint(vm, callFrame, globalObject, pc->as<OpIteratorNext>(), *sideState.get());
-        break;
-    }
-
-    case op_resolve_and_get_from_scope: {
-        handleResolveAndGetFromScopeCheckpoint(vm, callFrame, globalObject, pc->as<OpResolveAndGetFromScope>(), *sideState.get());
         break;
     }
 

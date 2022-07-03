@@ -554,6 +554,8 @@ bool canUseWebAssemblyFastMemory();
     v(Bool, useWebAssemblyGC, false, Normal, "Allow gc types from the wasm gc proposal.") \
     v(Bool, useWebAssemblyExceptions, true, Normal, "Allow the new section and instructions from the wasm exception handling spec.") \
     v(Bool, useWebAssemblyBranchHints, true, Normal, "Allow the new section from the wasm branch hinting spec.") \
+    v(Bool, useNewBC, false, Normal, "Allow the new section from the wasm branch hinting spec.") \
+    v(Bool, useDebugLog, false, Normal, "Allow the new section from the wasm branch hinting spec.") \
 
 
 enum OptionEquivalence {

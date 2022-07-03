@@ -1500,8 +1500,8 @@ ALWAYS_INLINE void JIT::emit_op_resolve_scope_helper(const JSInstruction* curren
         MacroAssemblerCodeRef<JITThunkPtrTag> code;
         if (std::is_same<Bytecode, OpResolveScope>::value)
             RESOLVE_SCOPE_CODE_REF(generateOpResolveScopeThunk);
-        else
-            RESOLVE_SCOPE_CODE_REF(generateOpRGSResolveScopeThunk);
+        // else
+        //     RESOLVE_SCOPE_CODE_REF(generateOpRGSResolveScopeThunk);
 
         emitNakedNearCall(code.retaggedCode<NoPtrTag>());
     }
@@ -1755,8 +1755,8 @@ ALWAYS_INLINE void JIT::emit_op_get_from_scope_helper(const JSInstruction* curre
     MacroAssemblerCodeRef<JITThunkPtrTag> code;
     if (std::is_same<Bytecode, OpGetFromScope>::value)
         GET_FROM_SCOPE_CODE_REF(generateOpGetFromScopeThunk);
-    else
-        GET_FROM_SCOPE_CODE_REF(generateOpRGSGetFromScopeThunk);
+    // else
+    //     GET_FROM_SCOPE_CODE_REF(generateOpRGSGetFromScopeThunk);
     emitNakedNearCall(code.retaggedCode<NoPtrTag>());
     emitPutVirtualRegister(dst, returnValueJSR);
 }
@@ -1964,34 +1964,6 @@ ALWAYS_INLINE MacroAssemblerCodeRef<JITThunkPtrTag> JIT::slow_op_get_from_scopeG
     auto handler = vm.getCTIStub(popThunkStackPreservesAndHandleExceptionGenerator);
     patchBuffer.link(jumpToHandler, CodeLocationLabel(handler.retaggedCode<NoPtrTag>()));
     return FINALIZE_THUNK(patchBuffer, JITThunkPtrTag, "Baseline: slow_op_get_from_scope");
-}
-
-void JIT::emit_op_resolve_and_get_from_scope(const JSInstruction* currentInstruction)
-{
-    emit_op_resolve_scope_helper<OpResolveAndGetFromScope>(currentInstruction, currentInstruction->as<OpResolveAndGetFromScope>().m_resolvedScope);
-    emit_op_get_from_scope_helper<OpResolveAndGetFromScope>(currentInstruction, currentInstruction->as<OpResolveAndGetFromScope>().m_resolvedScope);
-}
-
-template <ResolveType profiledResolveType>
-MacroAssemblerCodeRef<JITThunkPtrTag> JIT::generateOpRGSResolveScopeThunk(VM& vm)
-{
-    return generateOpResolveScopeThunkHelper<profiledResolveType, OpResolveAndGetFromScope>(vm, slow_op_rgs_resolve_scopeGenerator);
-}
-
-template <ResolveType profiledResolveType>
-MacroAssemblerCodeRef<JITThunkPtrTag> JIT::generateOpRGSGetFromScopeThunk(VM& vm)
-{
-    return generateOpGetFromScopeThunkHelper<profiledResolveType, OpResolveAndGetFromScope>(vm, slow_op_rgs_get_from_scopeGenerator);
-}
-
-MacroAssemblerCodeRef<JITThunkPtrTag> JIT::slow_op_rgs_resolve_scopeGenerator(VM& vm)
-{
-    return slow_op_resolve_scopeGenerator_helper<OpResolveAndGetFromScope>(vm, operationRGSResolveScope);
-}
-
-MacroAssemblerCodeRef<JITThunkPtrTag> JIT::slow_op_rgs_get_from_scopeGenerator(VM& vm)
-{
-    return slow_op_get_from_scopeGenerator_helper<OpResolveAndGetFromScope>(vm, operationRGSGetFromScope);
 }
 
 void JIT::emit_op_put_to_scope(const JSInstruction* currentInstruction)

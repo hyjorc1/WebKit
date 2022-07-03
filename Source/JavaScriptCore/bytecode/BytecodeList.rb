@@ -1083,14 +1083,14 @@ op :resolve_and_get_from_scope,
     metadata_initializers: {
         getPutInfo: :getPutInfo,
         operand: :offset,
-    },
-    tmps: {
-        tmpResolvedScope: JSValue,
-    },
-    checkpoints: {
-        resolveScope: nil,
-        getFromScope: nil,
     }
+    # tmps: {
+    #     tmpResolvedScope: JSValue,
+    # },
+    # checkpoints: {
+    #     resolveScope: nil,
+    #     getFromScope: nil,
+    # }
 
 op :put_to_scope,
     args: {

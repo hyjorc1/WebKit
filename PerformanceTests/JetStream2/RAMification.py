@@ -32,7 +32,7 @@ import sys
 
 jitTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto", "crypto-aes-SP", "crypto-md5-SP", "crypto-sha1-SP", "date-format-tofte-SP", "date-format-xparb-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "FlightPlanner", "float-mm.c", "gaussian-blur", "gbemu", "gcc-loops-wasm", "hash-map", "HashSet-wasm", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "n-body-SP", "navier-stokes", "octane-code-load", "octane-zlib", "OfflineAssembler", "pdfjs", "prepack-wtb", "quicksort-wasm", "raytrace", "regex-dna-SP", "regexp", "richards", "richards-wasm", "splay", "stanford-crypto-aes", "stanford-crypto-pbkdf2", "stanford-crypto-sha256", "string-unpack-code-SP", "tagcloud-SP", "tsf-wasm", "typescript", "uglify-js-wtb", "UniPoker", "WSL"]
 
-nonJITTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto-aes-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "gaussian-blur", "gbemu", "hash-map", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "octane-code-load", "OfflineAssembler", "pdfjs", "prepack-wtb", "raytrace", "regex-dna-SP", "regexp", "splay", "stanford-crypto-aes", "string-unpack-code-SP", "tagcloud-SP", "typescript", "uglify-js-wtb"]
+nonJITTests = ["Air"]
 
 # Run two groups of tests with each group in a single JSC instance to see how well memory recovers between tests.
 groupTests = ["typescript,acorn-wtb,Air,pdfjs,crypto-aes-SP", "splay,FlightPlanner,prepack-wtb,octane-zlib,3d-cube-SP"]
@@ -197,10 +197,15 @@ class LocalRunner(BaseRunner):
         if extraOptions:
             args.extend(extraOptions)
 
+        args.extend(["--useNewBC=1", "--useDebugLog=1"])
+
         if useJetStream2Harness:
             args.extend(["-e", "testList='{test}'; runMode='RAMification'".format(test=test), "cli.js"])
-        else:
-            args.extend(["--footprint", "{test}".format(test=test)])
+        # else:
+        #     args.extend(["--footprint", "{test}".format(test=test)])
+
+        # args.extend(["-p", "~/Desktop/wpatch_profile.json"])
+        # print(args)
 
         self.resetForTest(test)
 
@@ -214,9 +219,10 @@ class LocalRunner(BaseRunner):
 
             if "js shell waiting for input to exit" in line:
                 if self.vmmapOutput is not None:
-                    self.vmmapOutput = subprocess.Popen(['vmmap', '--summary', '{}'.format(proc.pid)], shell=False, stderr=subprocess.PIPE, stdout=subprocess.PIPE).stdout.read()
-                    if sys.version_info[0] >= 3:
-                        self.vmmapOutput = str(self.vmmapOutput, "utf-8")
+                    # self.vmmapOutput = subprocess.Popen(['footprint', '', '{}'.format(proc.pid)], shell=False, stderr=subprocess.PIPE, stdout=subprocess.PIPE).stdout.read()
+                    # if sys.version_info[0] >= 3:
+                    #     self.vmmapOutput = str(self.vmmapOutput, "utf-8")
+                    subprocess.run('leaks --fullContent -forkCorpse -outputGraph="~/Desktop/g.memgraph" {}'.format(proc.pid), shell=True)
                 if self.smapsOutput is not None:
                     self.smapsOutput = subprocess.Popen(['cat', '/proc/{}/smaps_rollup'.format(proc.pid)], shell=False, stderr=subprocess.PIPE, stdout=subprocess.PIPE).stdout.read()
                 proc.stdin.write(b"done\n")
@@ -242,6 +248,8 @@ def main(parser=None):
 
     if args.takeVmmap or args.takeSmaps:
         testRunner.setEnv("JS_SHELL_WAIT_FOR_INPUT_TO_EXIT", "1")
+    
+    # testRunner.setEnv("MallocStackLogging", "1")
 
     dyldFrameworkPath = frameworkPathFromExecutablePath(args.jscCommand)
     if dyldFrameworkPath:
@@ -267,36 +275,43 @@ def main(parser=None):
                 testName, test, weight = testInfo, testInfo, 1
 
             sys.stdout.write("Running {}... ".format(testName))
-            testResult = testRunner.runOneTest(test, extraOptions, useJetStream2Harness)
+            
+            total = 0.0
+            n = 1
+            for i in range(n):
+                testResult = testRunner.runOneTest(test, extraOptions, useJetStream2Harness)
+                total += testResult.peakFootprint
+            print("footprint: {} MB".format(total/n/1024/1024))
+                
 
-            if testResult.returnCode == 0 and testResult.footprint and testResult.peakFootprint:
-                if args.verbose:
-                    print("footprint: {}, peak footprint: {}".format(testResult.footprint, testResult.peakFootprint))
-                    if testResult.vmmapOutput:
-                        print(testResult.vmmapOutput)
-                    if testResult.smapsOutput:
-                        print(testResult.smapsOutput)
-                else:
-                    print
+            # if testResult.returnCode == 0 and testResult.footprint and testResult.peakFootprint:
+            #     if args.verbose:
+            #         print("footprint: {}, peak footprint: {}".format(testResult.footprint, testResult.peakFootprint))
+            #         if testResult.vmmapOutput:
+            #             print(testResult.vmmapOutput)
+            #         if testResult.smapsOutput:
+            #             print(testResult.smapsOutput)
+            #     else:
+            #         print
 
-                if testResult.footprint:
-                    footprintScores.append(int(testResult.footprint))
-                    for count in range(0, weight):
-                        footprintValues.append(testResult.footprint / oneMB)
-                if testResult.peakFootprint:
-                    peakFootprintScores.append(int(testResult.peakFootprint))
-                    for count in range(0, weight):
-                        peakFootprintValues.append(testResult.peakFootprint / oneMB)
-            else:
-                hasFailedRuns = True
-                print("failed")
-                if testResult.returnCode != 0:
-                    print(" exit code = {}".format(testResult.returnCode))
-                if not testResult.footprint:
-                    print(" footprint = {}".format(testResult.footprint))
-                if not testResult.peakFootprint:
-                    print(" peak footprint = {}".format(testResult.peakFootprint))
-                print
+            #     if testResult.footprint:
+            #         footprintScores.append(int(testResult.footprint))
+            #         for count in range(0, weight):
+            #             footprintValues.append(testResult.footprint / oneMB)
+            #     if testResult.peakFootprint:
+            #         peakFootprintScores.append(int(testResult.peakFootprint))
+            #         for count in range(0, weight):
+            #             peakFootprintValues.append(testResult.peakFootprint / oneMB)
+            # else:
+            #     hasFailedRuns = True
+            #     print("failed")
+            #     if testResult.returnCode != 0:
+            #         print(" exit code = {}".format(testResult.returnCode))
+            #     if not testResult.footprint:
+            #         print(" footprint = {}".format(testResult.footprint))
+            #     if not testResult.peakFootprint:
+            #         print(" peak footprint = {}".format(testResult.peakFootprint))
+            #     print
 
             testScoresDict[test] = {"metrics": {"Allocations": ["Geometric"]}, "tests": {"end": {"metrics": {"Allocations": {"current": footprintScores}}}, "peak": {"metrics": {"Allocations": {"current": peakFootprintScores}}}}}
 
@@ -305,69 +320,69 @@ def main(parser=None):
     current_path = os.getcwd()
     os.chdir(ramification_dir)  # To allow JS libraries to load
 
-    if args.runLuaTests:
-        if args.verbose:
-            print("== LuaJSFight No JIT tests ==")
+    # if args.runLuaTests:
+    #     if args.verbose:
+    #         print("== LuaJSFight No JIT tests ==")
 
-        # Use system malloc for LuaJSFight tests
-        testRunner.setEnv("Malloc", "X")
+    #     # Use system malloc for LuaJSFight tests
+    #     testRunner.setEnv("Malloc", "X")
 
-        scoresDict = runTestList(luaTests, ["--useJIT=false", "--forceMiniVMMode=true"], useJetStream2Harness=False)
+    #     scoresDict = runTestList(luaTests, ["--useJIT=false", "--forceMiniVMMode=true"], useJetStream2Harness=False)
 
-        testResultsDict["LuaJSFight No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+    #     testResultsDict["LuaJSFight No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-        testRunner.unsetEnv("Malloc")
+    #     testRunner.unsetEnv("Malloc")
 
-    if args.runGroupedTests:
-        if args.verbose:
-            print("== Grouped tests ==")
+    # if args.runGroupedTests:
+    #     if args.verbose:
+    #         print("== Grouped tests ==")
 
-        scoresDict = runTestList(groupTests)
+    #     scoresDict = runTestList(groupTests)
 
-        testResultsDict["Grouped Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+    #     testResultsDict["Grouped Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-    if args.runJITTests:
-        if args.verbose:
-            print("== JIT tests ==")
+    # if args.runJITTests:
+    #     if args.verbose:
+    #         print("== JIT tests ==")
 
-        scoresDict = runTestList(jitTests)
+    #     scoresDict = runTestList(jitTests)
 
-        testResultsDict["JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+    #     testResultsDict["JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-    if args.runNoJITTests:
-        if args.verbose:
-            print("== No JIT tests ==")
+    # if args.runNoJITTests:
+    #     if args.verbose:
+    #         print("== No JIT tests ==")
 
-        scoresDict = runTestList(nonJITTests, ["--useJIT=false", "-e", "testIterationCount=1"])
+    scoresDict = runTestList(nonJITTests, ["--useJIT=false", "-e", "testIterationCount=1"])
 
-        testResultsDict["No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+    # testResultsDict["No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-    footprintGeomean = int(geomean(footprintValues) * oneMB)
-    peakFootprintGeomean = int(geomean(peakFootprintValues) * oneMB)
-    totalScore = int(geomean([footprintGeomean, peakFootprintGeomean]))
+    # footprintGeomean = int(geomean(footprintValues) * oneMB)
+    # peakFootprintGeomean = int(geomean(peakFootprintValues) * oneMB)
+    # totalScore = int(geomean([footprintGeomean, peakFootprintGeomean]))
 
-    if footprintGeomean:
-        print("Footprint geomean: {} ({:.3f} MB)".format(footprintGeomean, footprintGeomean / oneMB))
+    # if footprintGeomean:
+    #     print("Footprint geomean: {} ({:.3f} MB)".format(footprintGeomean, footprintGeomean / oneMB))
 
-    if peakFootprintGeomean:
-        print("Peak Footprint geomean: {} ({:.3f} MB)".format(peakFootprintGeomean, peakFootprintGeomean / oneMB))
+    # if peakFootprintGeomean:
+    #     print("Peak Footprint geomean: {} ({:.3f} MB)".format(peakFootprintGeomean, peakFootprintGeomean / oneMB))
 
-    if footprintGeomean and peakFootprintGeomean:
-        print("Score: {} ({:.3f} MB)".format(totalScore, totalScore / oneMB))
+    # if footprintGeomean and peakFootprintGeomean:
+    #     print("Score: {} ({:.3f} MB)".format(totalScore, totalScore / oneMB))
 
-    resultsDict = {"RAMification": {"metrics": {"Allocations": {"current": [totalScore]}}, "tests": testResultsDict}}
+    # resultsDict = {"RAMification": {"metrics": {"Allocations": {"current": [totalScore]}}, "tests": testResultsDict}}
 
-    os.chdir(current_path)  # Reset the path back to what it was before
+    # os.chdir(current_path)  # Reset the path back to what it was before
 
-    if args.jsonFilename:
-        with open(args.jsonFilename, "w") as jsonFile:
-            if args.formatJSON:
-                json.dump(resultsDict, jsonFile, indent=4, separators=(',', ': '))
-            else:
-                json.dump(resultsDict, jsonFile)
+    # if args.jsonFilename:
+    #     with open(args.jsonFilename, "w") as jsonFile:
+    #         if args.formatJSON:
+    #             json.dump(resultsDict, jsonFile, indent=4, separators=(',', ': '))
+    #         else:
+    #             json.dump(resultsDict, jsonFile)
 
-    if hasFailedRuns:
-        print("Detected failed run(s), exiting with non-zero return code")
+    # if hasFailedRuns:
+    #     print("Detected failed run(s), exiting with non-zero return code")
 
     return hasFailedRuns
 

@@ -597,6 +597,7 @@ bool CodeBlock::finishCreation(VM& vm, ScriptExecutable* ownerExecutable, Unlink
         }
 
         case op_resolve_and_get_from_scope: {
+            // dataLogLnIf(Options::useDebugLog(), "Link op_resolve_and_get_from_scope");
             INITIALIZE_METADATA(OpResolveAndGetFromScope)
             linkResolveScope(bytecode, metadata, bytecode.m_getPutInfo.resolveType());
             linkGetFromScope(instruction, bytecode, metadata);
@@ -1529,7 +1530,7 @@ void CodeBlock::finalizeLLIntInlineCaches()
             handleCreateBytecode(metadata, "op_create_async_generator"_s);
         });
 
-        auto clearDeadSymbolTable = [&] (auto& metadata) {
+        m_metadata->forEach<OpResolveScope>([&] (auto& metadata) {
             // Right now this isn't strictly necessary. Any symbol tables that this will refer to
             // are for outer functions, and we refer to those functions strongly, and they refer
             // to the symbol table strongly. But it's nice to be on the safe side.
@@ -1538,10 +1539,7 @@ void CodeBlock::finalizeLLIntInlineCaches()
                 return;
             dataLogLnIf(Options::verboseOSR(), "Clearing dead symbolTable ", RawPointer(symbolTable.get()));
             symbolTable.clear();
-        };
-
-        m_metadata->forEach<OpResolveScope>(clearDeadSymbolTable);
-        m_metadata->forEach<OpResolveAndGetFromScope>(clearDeadSymbolTable);
+        });
 
         auto handleGetPutFromScope = [&] (auto& metadata) {
             GetPutInfo getPutInfo = metadata.m_getPutInfo;
@@ -1556,7 +1554,6 @@ void CodeBlock::finalizeLLIntInlineCaches()
         };
 
         m_metadata->forEach<OpGetFromScope>(handleGetPutFromScope);
-        m_metadata->forEach<OpResolveAndGetFromScope>(handleGetPutFromScope);
         m_metadata->forEach<OpPutToScope>(handleGetPutFromScope);
     }
 
@@ -3038,30 +3035,21 @@ void CodeBlock::notifyLexicalBindingUpdate()
         return symbolTable->contains(locker, uid);
     };
 
-    auto updateGlobalLexicalBinding = [&] (auto& bytecode) {
-        auto& metadata = bytecode.metadata(this);
-        ResolveType originalResolveType = metadata.m_resolveType;
-        if (originalResolveType == GlobalProperty || originalResolveType == GlobalPropertyWithVarInjectionChecks) {
-            const Identifier& ident = identifier(bytecode.m_var);
-            if (isShadowed(ident.impl()))
-                metadata.m_globalLexicalBindingEpoch = 0;
-            else
-                metadata.m_globalLexicalBindingEpoch = globalObject->globalLexicalBindingEpoch();
-        }
-    };
-
     const auto& instructionStream = instructions();
     for (const auto& instruction : instructionStream) {
         OpcodeID opcodeID = instruction->opcodeID();
         switch (opcodeID) {
         case op_resolve_scope: {
             auto bytecode = instruction->as<OpResolveScope>();
-            updateGlobalLexicalBinding(bytecode);
-            break;
-        }
-        case op_resolve_and_get_from_scope: {
-            auto bytecode = instruction->as<OpResolveAndGetFromScope>();
-            updateGlobalLexicalBinding(bytecode);
+            auto& metadata = bytecode.metadata(this);
+            ResolveType originalResolveType = metadata.m_resolveType;
+            if (originalResolveType == GlobalProperty || originalResolveType == GlobalPropertyWithVarInjectionChecks) {
+                const Identifier& ident = identifier(bytecode.m_var);
+                if (isShadowed(ident.impl()))
+                    metadata.m_globalLexicalBindingEpoch = 0;
+                else
+                    metadata.m_globalLexicalBindingEpoch = globalObject->globalLexicalBindingEpoch();
+            }
             break;
         }
         default:
@@ -3189,11 +3177,9 @@ ValueProfile* CodeBlock::tryGetValueProfileForBytecodeIndex(BytecodeIndex byteco
 #undef CASE
 
     case op_iterator_open:
-        return valueProfileFor(instruction->as<OpIteratorOpen>().metadata(this), bytecodeIndex.checkpoint());
+        return &valueProfileFor(instruction->as<OpIteratorOpen>().metadata(this), bytecodeIndex.checkpoint());
     case op_iterator_next:
-        return valueProfileFor(instruction->as<OpIteratorNext>().metadata(this), bytecodeIndex.checkpoint());
-    case op_resolve_and_get_from_scope:
-        return valueProfileFor(instruction->as<OpResolveAndGetFromScope>().metadata(this), bytecodeIndex.checkpoint());
+        return &valueProfileFor(instruction->as<OpIteratorNext>().metadata(this), bytecodeIndex.checkpoint());
 
     default:
         return nullptr;

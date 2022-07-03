@@ -1156,9 +1156,7 @@ ALWAYS_INLINE SlowPathReturnType commonSlowPathResolveScopeHelper(CallFrame* cal
     JSScope* scope = callFrame->uncheckedR(bytecode.m_scope).Register::scope();
     JSObject* resolvedScope = JSScope::resolve(globalObject, scope, ident);
     // Proxy can throw an error here, e.g. Proxy in with statement's @unscopables.
-    // Here, use the second field of SlowPathReturnType as a flag to indicate whether
-    // the LLInt code of OpResolveAndGetFromScope needs to handle the exception cases.
-    CHECK_EXCEPTION_WITH_RETURN_SECOND(returnSecond);
+    CHECK_EXCEPTION();
 
     ResolveType resolveType = metadata.m_resolveType;
 
@@ -1173,7 +1171,7 @@ ALWAYS_INLINE SlowPathReturnType commonSlowPathResolveScopeHelper(CallFrame* cal
         if (resolvedScope->isGlobalObject()) {
             JSGlobalObject* globalObject = jsCast<JSGlobalObject*>(resolvedScope);
             bool hasProperty = globalObject->hasProperty(globalObject, ident);
-            CHECK_EXCEPTION_WITH_RETURN_SECOND(returnSecond);
+            CHECK_EXCEPTION();
             if (hasProperty) {
                 ConcurrentJSLocker locker(codeBlock->m_lock);
                 metadata.m_resolveType = needsVarInjectionChecks(resolveType) ? GlobalPropertyWithVarInjectionChecks : GlobalProperty;
@@ -1192,6 +1190,7 @@ ALWAYS_INLINE SlowPathReturnType commonSlowPathResolveScopeHelper(CallFrame* cal
         break;
     }
 
+    UNUSED_VARIABLE(returnSecond);
     RETURN_WITH_DESTINATION_AND_SECOND(dst, resolvedScope, returnSecond);
 }
 

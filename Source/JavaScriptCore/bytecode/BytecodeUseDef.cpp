@@ -72,11 +72,6 @@ void computeUsesForBytecodeIndexImpl(VirtualRegister scopeRegister, const JSInst
             (functor(virtualRegisters), ...);
     };
 
-    auto useAt = [&] (Checkpoint target, VirtualRegister operand) {
-        if (target == checkpoint)
-            functor(operand);
-    };
-
     switch (opcodeID) {
     case op_wide16:
     case op_wide32:
@@ -266,6 +261,8 @@ void computeUsesForBytecodeIndexImpl(VirtualRegister scopeRegister, const JSInst
     USES(OpGetByValWithThis, base, thisValue, property)
     USES(OpInstanceofCustom, value, constructor, hasInstanceValue)
 
+    USES(OpResolveAndGetFromScope, scope, resolvedScope)
+
     case op_call_varargs: {
         auto bytecode = instruction->as<OpCallVarargs>();
         useAtEachCheckpoint(bytecode.m_callee, bytecode.m_thisValue, bytecode.m_arguments);
@@ -337,13 +334,6 @@ void computeUsesForBytecodeIndexImpl(VirtualRegister scopeRegister, const JSInst
     case op_tail_call:
         handleOpCallLike(instruction->as<OpTailCall>());
         return;
-
-    case op_resolve_and_get_from_scope: {
-        auto bytecode = instruction->as<OpResolveAndGetFromScope>();
-        useAt(OpResolveAndGetFromScope::resolveScope, bytecode.m_scope);
-        useAt(OpResolveAndGetFromScope::getFromScope, bytecode.m_resolvedScope);
-        return;
-    }
 
     default:
         RELEASE_ASSERT_NOT_REACHED();
@@ -477,13 +467,7 @@ void computeDefsForBytecodeIndexImpl(unsigned numVars, const JSInstruction* inst
         return;
     }
 
-    case op_resolve_and_get_from_scope: {
-        auto bytecode = instruction->as<OpResolveAndGetFromScope>();
-        defAt(OpResolveAndGetFromScope::resolveScope, bytecode.m_resolvedScope);
-        defAt(OpResolveAndGetFromScope::getFromScope, bytecode.m_dst);
-        return;
-    }
-
+    DEFS(OpResolveAndGetFromScope, dst)
     DEFS(OpTailCallForwardArguments, dst)
     DEFS(OpGetFromScope, dst)
     DEFS(OpCall, dst)
