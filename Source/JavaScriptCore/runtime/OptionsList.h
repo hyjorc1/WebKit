@@ -556,6 +556,7 @@ bool canUseWebAssemblyFastMemory();
     v(Bool, useWebAssemblyBranchHints, true, Normal, "Allow the new section from the wasm branch hinting spec.") \
     v(Bool, useNewBC, false, Normal, "Allow the new section from the wasm branch hinting spec.") \
     v(Bool, useDebugLog, false, Normal, "Allow the new section from the wasm branch hinting spec.") \
+    v(Bool, rewindMetadata, false, Normal, "Allow the new section from the wasm branch hinting spec.") \
 
 
 enum OptionEquivalence {

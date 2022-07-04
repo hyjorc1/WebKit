@@ -30,7 +30,7 @@ import re
 import subprocess
 import sys
 
-jitTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto", "crypto-aes-SP", "crypto-md5-SP", "crypto-sha1-SP", "date-format-tofte-SP", "date-format-xparb-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "FlightPlanner", "float-mm.c", "gaussian-blur", "gbemu", "gcc-loops-wasm", "hash-map", "HashSet-wasm", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "n-body-SP", "navier-stokes", "octane-code-load", "octane-zlib", "OfflineAssembler", "pdfjs", "prepack-wtb", "quicksort-wasm", "raytrace", "regex-dna-SP", "regexp", "richards", "richards-wasm", "splay", "stanford-crypto-aes", "stanford-crypto-pbkdf2", "stanford-crypto-sha256", "string-unpack-code-SP", "tagcloud-SP", "tsf-wasm", "typescript", "uglify-js-wtb", "UniPoker", "WSL"]
+# jitTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto", "crypto-aes-SP", "crypto-md5-SP", "crypto-sha1-SP", "date-format-tofte-SP", "date-format-xparb-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "FlightPlanner", "float-mm.c", "gaussian-blur", "gbemu", "gcc-loops-wasm", "hash-map", "HashSet-wasm", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "n-body-SP", "navier-stokes", "octane-code-load", "octane-zlib", "OfflineAssembler", "pdfjs", "prepack-wtb", "quicksort-wasm", "raytrace", "regex-dna-SP", "regexp", "richards", "richards-wasm", "splay", "stanford-crypto-aes", "stanford-crypto-pbkdf2", "stanford-crypto-sha256", "string-unpack-code-SP", "tagcloud-SP", "tsf-wasm", "typescript", "uglify-js-wtb", "UniPoker", "WSL"]
 
 nonJITTests = ["Air"]
 
@@ -197,7 +197,7 @@ class LocalRunner(BaseRunner):
         if extraOptions:
             args.extend(extraOptions)
 
-        args.extend(["--useNewBC=1", "--useDebugLog=1"])
+        args.extend(["--useNewBC=0", "--rewindMetadata=1", "--useDebugLog=1", "--dumpGeneratedBytecodes=1"])
 
         if useJetStream2Harness:
             args.extend(["-e", "testList='{test}'; runMode='RAMification'".format(test=test), "cli.js"])
@@ -280,7 +280,8 @@ def main(parser=None):
             n = 1
             for i in range(n):
                 testResult = testRunner.runOneTest(test, extraOptions, useJetStream2Harness)
-                total += testResult.peakFootprint
+                if testResult.peakFootprint != None:
+                    total += testResult.peakFootprint
             print("footprint: {} MB".format(total/n/1024/1024))
                 
 

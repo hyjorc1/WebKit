@@ -232,15 +232,16 @@ static void dumpHeader(Block* block, const JSInstructionStream& instructions, Pr
 
     out.print(*block);
     out.printf(
-        ": %lu instructions (%lu 16-bit instructions, %lu 32-bit instructions, %lu instructions with metadata); %lu bytes (%lu metadata bytes); %d parameter(s); %d callee register(s); %d variable(s)",
+        ": %lu instructions; %lu bytes (%lu metadata bytes);",
         static_cast<unsigned long>(instructionCount),
-        static_cast<unsigned long>(wide16InstructionCount),
-        static_cast<unsigned long>(wide32InstructionCount),
-        static_cast<unsigned long>(instructionWithMetadataCount),
+        // static_cast<unsigned long>(wide16InstructionCount),
+        // static_cast<unsigned long>(wide32InstructionCount),
+        // static_cast<unsigned long>(instructionWithMetadataCount),
         static_cast<unsigned long>(instructions.sizeInBytes() + block->metadataSizeInBytes()),
-        static_cast<unsigned long>(block->metadataSizeInBytes()),
-        block->numParameters(), block->numCalleeLocals(), block->numVars());
-    out.print("; scope at ", block->scopeRegister());
+        static_cast<unsigned long>(block->metadataSizeInBytes())
+        // block->numParameters(), block->numCalleeLocals(), block->numVars()
+        );
+    // out.print("; scope at ", block->scopeRegister());
     out.printf("\n");
 }
 
@@ -273,51 +274,54 @@ void CodeBlockBytecodeDumper<Block>::dumpGraph(Block* block, const JSInstruction
 {
     dumpHeader(block, instructions, out);
 
-    CodeBlockBytecodeDumper<Block> dumper(block, out);
+    UNUSED_VARIABLE(graph);
+    UNUSED_VARIABLE(icStatusMap);
 
-    out.printf("\n");
+    // CodeBlockBytecodeDumper<Block> dumper(block, out);
 
-    Vector<Vector<unsigned>> predecessors;
-    predecessors.resize(graph.size());
-    for (auto& block : graph) {
-        if (block.isEntryBlock() || block.isExitBlock())
-            continue;
-        for (auto successorIndex : block.successors()) {
-            if (!predecessors[successorIndex].contains(block.index()))
-                predecessors[successorIndex].append(block.index());
-        }
-    }
+    // out.printf("\n");
 
-    for (auto& block : graph) {
-        if (block.isEntryBlock() || block.isExitBlock())
-            continue;
+    // Vector<Vector<unsigned>> predecessors;
+    // predecessors.resize(graph.size());
+    // for (auto& block : graph) {
+    //     if (block.isEntryBlock() || block.isExitBlock())
+    //         continue;
+    //     for (auto successorIndex : block.successors()) {
+    //         if (!predecessors[successorIndex].contains(block.index()))
+    //             predecessors[successorIndex].append(block.index());
+    //     }
+    // }
 
-        out.print("bb#", block.index(), "\n");
+    // for (auto& block : graph) {
+    //     if (block.isEntryBlock() || block.isExitBlock())
+    //         continue;
 
-        out.print("Predecessors: [");
-        for (unsigned predecessor : predecessors[block.index()]) {
-            if (!graph[predecessor].isEntryBlock())
-                out.print(" #", predecessor);
-        }
-        out.print(" ]\n");
+    //     out.print("bb#", block.index(), "\n");
 
-        for (unsigned i = 0; i < block.totalLength(); ) {
-            auto& currentInstruction = instructions.at(i + block.leaderOffset());
-            dumper.dumpBytecode(currentInstruction, icStatusMap);
-            i += currentInstruction.ptr()->size();
-        }
+    //     out.print("Predecessors: [");
+    //     for (unsigned predecessor : predecessors[block.index()]) {
+    //         if (!graph[predecessor].isEntryBlock())
+    //             out.print(" #", predecessor);
+    //     }
+    //     out.print(" ]\n");
 
-        out.print("Successors: [");
-        for (unsigned successor : block.successors()) {
-            if (!graph[successor].isExitBlock())
-                out.print(" #", successor);
-        }
-        out.print(" ]\n\n");
-    }
+    //     for (unsigned i = 0; i < block.totalLength(); ) {
+    //         auto& currentInstruction = instructions.at(i + block.leaderOffset());
+    //         dumper.dumpBytecode(currentInstruction, icStatusMap);
+    //         i += currentInstruction.ptr()->size();
+    //     }
 
-    dumpFooter(dumper);
+    //     out.print("Successors: [");
+    //     for (unsigned successor : block.successors()) {
+    //         if (!graph[successor].isExitBlock())
+    //             out.print(" #", successor);
+    //     }
+    //     out.print(" ]\n\n");
+    // }
 
-    out.printf("\n");
+    // dumpFooter(dumper);
+
+    // out.printf("\n");
 }
 
 template class BytecodeDumperBase<JSInstructionStream>;
