@@ -758,8 +758,10 @@ bool CodeBlock::finishCreation(VM& vm, ScriptExecutable* ownerExecutable, Unlink
     if (Options::alwaysComputeHash())
         hash();
 
-    if (Options::dumpGeneratedBytecodes())
-        dumpBytecode();
+    if (Options::dumpGeneratedBytecodes()) {
+        // dumpBytecode();
+        dataLogLnIf(Options::useDebugLog(), "m_metadata->sizeInBytes(): ", m_metadata->sizeInBytes());
+    }
 
     if (m_metadata)
         vm.heap.reportExtraMemoryAllocated(m_metadata->sizeInBytes());

@@ -272,52 +272,54 @@ template<class Block>
 void CodeBlockBytecodeDumper<Block>::dumpGraph(Block* block, const JSInstructionStream& instructions, BytecodeGraph& graph, PrintStream& out, const ICStatusMap& icStatusMap)
 {
     dumpHeader(block, instructions, out);
+    UNUSED_VARIABLE(graph);
+    UNUSED_VARIABLE(icStatusMap);
 
-    CodeBlockBytecodeDumper<Block> dumper(block, out);
+    // CodeBlockBytecodeDumper<Block> dumper(block, out);
 
-    out.printf("\n");
+    // out.printf("\n");
 
-    Vector<Vector<unsigned>> predecessors;
-    predecessors.resize(graph.size());
-    for (auto& block : graph) {
-        if (block.isEntryBlock() || block.isExitBlock())
-            continue;
-        for (auto successorIndex : block.successors()) {
-            if (!predecessors[successorIndex].contains(block.index()))
-                predecessors[successorIndex].append(block.index());
-        }
-    }
+    // Vector<Vector<unsigned>> predecessors;
+    // predecessors.resize(graph.size());
+    // for (auto& block : graph) {
+    //     if (block.isEntryBlock() || block.isExitBlock())
+    //         continue;
+    //     for (auto successorIndex : block.successors()) {
+    //         if (!predecessors[successorIndex].contains(block.index()))
+    //             predecessors[successorIndex].append(block.index());
+    //     }
+    // }
 
-    for (auto& block : graph) {
-        if (block.isEntryBlock() || block.isExitBlock())
-            continue;
+    // for (auto& block : graph) {
+    //     if (block.isEntryBlock() || block.isExitBlock())
+    //         continue;
 
-        out.print("bb#", block.index(), "\n");
+    //     out.print("bb#", block.index(), "\n");
 
-        out.print("Predecessors: [");
-        for (unsigned predecessor : predecessors[block.index()]) {
-            if (!graph[predecessor].isEntryBlock())
-                out.print(" #", predecessor);
-        }
-        out.print(" ]\n");
+    //     out.print("Predecessors: [");
+    //     for (unsigned predecessor : predecessors[block.index()]) {
+    //         if (!graph[predecessor].isEntryBlock())
+    //             out.print(" #", predecessor);
+    //     }
+    //     out.print(" ]\n");
 
-        for (unsigned i = 0; i < block.totalLength(); ) {
-            auto& currentInstruction = instructions.at(i + block.leaderOffset());
-            dumper.dumpBytecode(currentInstruction, icStatusMap);
-            i += currentInstruction.ptr()->size();
-        }
+    //     for (unsigned i = 0; i < block.totalLength(); ) {
+    //         auto& currentInstruction = instructions.at(i + block.leaderOffset());
+    //         dumper.dumpBytecode(currentInstruction, icStatusMap);
+    //         i += currentInstruction.ptr()->size();
+    //     }
 
-        out.print("Successors: [");
-        for (unsigned successor : block.successors()) {
-            if (!graph[successor].isExitBlock())
-                out.print(" #", successor);
-        }
-        out.print(" ]\n\n");
-    }
+    //     out.print("Successors: [");
+    //     for (unsigned successor : block.successors()) {
+    //         if (!graph[successor].isExitBlock())
+    //             out.print(" #", successor);
+    //     }
+    //     out.print(" ]\n\n");
+    // }
 
-    dumpFooter(dumper);
+    // dumpFooter(dumper);
 
-    out.printf("\n");
+    // out.printf("\n");
 }
 
 template class BytecodeDumperBase<JSInstructionStream>;
