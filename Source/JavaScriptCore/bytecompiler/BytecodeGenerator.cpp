@@ -2524,6 +2524,7 @@ ALWAYS_INLINE void BytecodeGenerator::emitGetFromScopeHelper(RegisterID* dst, Re
 
     if (validResolveAndGetFromScopePair) {
         VirtualRegister prevScope = m_lastInstruction->as<OpResolveScope>().m_scope;
+        removeLastMetadataFor(op_resolve_scope);
         rewind();
         OpResolveAndGetFromScope::emit(this, dst, prevScope, scope, var, getPutInfo, localScopeDepth, offset);
         return;

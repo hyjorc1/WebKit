@@ -53,6 +53,8 @@ public:
 
     unsigned addEntry(OpcodeID);
 
+    unsigned removeLastEntry(OpcodeID);
+
     size_t sizeInBytes();
 
     void finalize();

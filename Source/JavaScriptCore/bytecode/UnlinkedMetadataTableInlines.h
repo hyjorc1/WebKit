@@ -73,6 +73,14 @@ ALWAYS_INLINE unsigned UnlinkedMetadataTable::addEntry(OpcodeID opcodeID)
     return preprocessBuffer()[opcodeID]++;
 }
 
+ALWAYS_INLINE unsigned UnlinkedMetadataTable::removeLastEntry(OpcodeID opcodeID)
+{
+    ASSERT(!m_isFinalized && opcodeID < s_offsetTableEntries - 1);
+    m_hasMetadata = true;
+    preprocessBuffer()[opcodeID]--;
+    return preprocessBuffer()[opcodeID];
+}
+
 template <typename Bytecode>
 ALWAYS_INLINE unsigned UnlinkedMetadataTable::numEntries()
 {

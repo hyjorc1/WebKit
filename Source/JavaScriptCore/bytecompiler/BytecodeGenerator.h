@@ -491,6 +491,11 @@ namespace JSC {
             return m_codeBlock->metadata().addEntry(opcodeID);
         }
 
+        ALWAYS_INLINE unsigned removeLastMetadataFor(OpcodeID opcodeID)
+        {
+            return m_codeBlock->metadata().removeLastEntry(opcodeID);
+        }
+
         void emitNode(StatementNode* n)
         {
             emitNode(nullptr, n);
