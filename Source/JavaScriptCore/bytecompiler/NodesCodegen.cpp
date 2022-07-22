@@ -1023,7 +1023,7 @@ RegisterID* BaseDotNode::emitGetPropertyValue(BytecodeGenerator& generator, Regi
         ASSERT_WITH_MESSAGE(!var.local(), "Private Field names must be stored in captured variables");
 
         RefPtr<RegisterID> privateName = generator.newTemporary();
-        generator.emitResolveAndGetFromScope(privateName.get(), nullptr, var, DoNotThrowIfNotFound);
+        generator.emitResolveAndGetFromScope(privateName.get(), nullptr, var, DoNotThrowIfNotFound, true);
         return generator.emitGetPrivateName(dst, base, privateName.get());
     }
 
@@ -1080,7 +1080,7 @@ RegisterID* BaseDotNode::emitPutProperty(BytecodeGenerator& generator, RegisterI
         ASSERT_WITH_MESSAGE(!var.local(), "Private Field names must be stored in captured variables");
 
         RefPtr<RegisterID> privateName = generator.newTemporary();
-        generator.emitResolveAndGetFromScope(privateName.get(), nullptr, var, DoNotThrowIfNotFound);
+        generator.emitResolveAndGetFromScope(privateName.get(), nullptr, var, DoNotThrowIfNotFound, true);
         return generator.emitPrivateFieldPut(base, privateName.get(), value);
     }
 
@@ -2429,7 +2429,7 @@ RegisterID* PostfixNode::emitDot(BytecodeGenerator& generator, RegisterID* dst)
         if (privateTraits.isField()) {
             Variable var = generator.variable(ident);
             RefPtr<RegisterID> privateName = generator.newTemporary();
-            generator.emitResolveAndGetFromScope(privateName.get(), nullptr, var, DoNotThrowIfNotFound);
+            generator.emitResolveAndGetFromScope(privateName.get(), nullptr, var, DoNotThrowIfNotFound, true);
 
             RefPtr<RegisterID> value = generator.emitGetPrivateName(generator.newTemporary(), base.get(), privateName.get());
             RefPtr<RegisterID> oldValue = emitPostIncOrDec(generator, generator.tempDestination(dst), value.get(), m_operator);

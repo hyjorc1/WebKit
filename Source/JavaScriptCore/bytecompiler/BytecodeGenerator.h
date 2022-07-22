@@ -491,11 +491,6 @@ namespace JSC {
             return m_codeBlock->metadata().addEntry(opcodeID);
         }
 
-        ALWAYS_INLINE void removeMetadataFor(OpcodeID opcodeID)
-        {
-            m_codeBlock->metadata().removeEntry(opcodeID);
-        }
-
         void emitNode(StatementNode* n)
         {
             emitNode(nullptr, n);
@@ -857,7 +852,7 @@ namespace JSC {
         RegisterID* emitGetFromScopeWithVarKindDirectArgument(RegisterID* dst, RegisterID* scope, const Variable&);
         RegisterID* emitGetFromScopeHelper(RegisterID* dst, RegisterID* scope, const Variable&, ResolveMode);
         RegisterID* emitGetFromScope(RegisterID* dst, RegisterID* scope, const Variable&, ResolveMode);
-        RegisterID* emitResolveAndGetFromScope(RegisterID* dst, RegisterID* resolvedScope, const Variable&, ResolveMode);
+        RegisterID* emitResolveAndGetFromScope(RegisterID* dst, RegisterID* resolvedScope, const Variable&, ResolveMode, bool isPrivate = false);
         RegisterID* emitPutToScope(RegisterID* scope, const Variable&, RegisterID* value, ResolveMode, InitializationMode);
 
         RegisterID* emitResolveScopeForHoistingFuncDeclInEval(RegisterID* dst, const Identifier&);

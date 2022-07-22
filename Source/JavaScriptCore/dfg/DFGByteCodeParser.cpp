@@ -4288,13 +4288,11 @@ bool ByteCodeParser::needsDynamicLookup(ResolveType type, OpcodeID opcode)
     if (needsVarInjectionChecks(type) && globalObject->varInjectionWatchpoint()->hasBeenInvalidated())
         return true;
 
-    auto isResolveScope = [&]() {
-        if (opcode == op_resolve_scope)
-            return true;
-        if (opcode == op_resolve_and_get_from_scope && m_currentIndex.checkpoint() == OpResolveAndGetFromScope::resolveScope)
-            return true;
-        return false;
-    };
+    bool isResolveScope = false;
+    if (opcode == op_resolve_scope)
+        isResolveScope = true;
+    if (opcode == op_resolve_and_get_from_scope && m_currentIndex.checkpoint() == OpResolveAndGetFromScope::resolveScope)
+        isResolveScope = true;
 
     switch (type) {
     case GlobalVar:
@@ -4322,7 +4320,7 @@ bool ByteCodeParser::needsDynamicLookup(ResolveType type, OpcodeID opcode)
 
         // We only track our heuristic through resolve_scope since resolve_scope will
         // dominate unresolved gets/puts on that scope.
-        if (!isResolveScope())
+        if (!isResolveScope)
             return true;
 
         if (m_inlineStackTop->m_exitProfile.hasExitSite(m_currentIndex, InadequateCoverage)) {

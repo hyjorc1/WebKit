@@ -2457,7 +2457,7 @@ ResolveType BytecodeGenerator::resolveType()
     return GlobalProperty;
 }
 
-RegisterID* BytecodeGenerator::emitResolveScopeWithVarKindScope(const Variable& variable)
+ALWAYS_INLINE RegisterID* BytecodeGenerator::emitResolveScopeWithVarKindScope(const Variable& variable)
 {
     // This always refers to the activation that *we* allocated, and not the current scope that code
     // lives in. Note that this will change once we have proper support for block scoping. Once that
@@ -2483,7 +2483,7 @@ RegisterID* BytecodeGenerator::emitResolveScopeWithVarKindScope(const Variable& 
     return nullptr;
 }
 
-RegisterID* BytecodeGenerator::emitResolveScopeHelper(RegisterID* dst, const Variable& variable)
+ALWAYS_INLINE RegisterID* BytecodeGenerator::emitResolveScopeHelper(RegisterID* dst, const Variable& variable)
 {
     // Indicates non-local resolution.
     dst = tempDestination(dst);
@@ -2508,18 +2508,18 @@ RegisterID* BytecodeGenerator::emitResolveScope(RegisterID* dst, const Variable&
     return nullptr;
 }
 
-RegisterID* BytecodeGenerator::emitGetFromScopeWithVarKindStack(RegisterID* dst, const Variable& variable)
+ALWAYS_INLINE RegisterID* BytecodeGenerator::emitGetFromScopeWithVarKindStack(RegisterID* dst, const Variable& variable)
 {
     return move(dst, variable.local());
 }
 
-RegisterID* BytecodeGenerator::emitGetFromScopeWithVarKindDirectArgument(RegisterID* dst, RegisterID* scope, const Variable& variable)
+ALWAYS_INLINE RegisterID* BytecodeGenerator::emitGetFromScopeWithVarKindDirectArgument(RegisterID* dst, RegisterID* scope, const Variable& variable)
 {
     OpGetFromArguments::emit(this, kill(dst), scope, variable.offset().capturedArgumentsOffset().offset());
     return dst;
 }
 
-RegisterID* BytecodeGenerator::emitGetFromScopeHelper(RegisterID* dst, RegisterID* scope, const Variable& variable, ResolveMode resolveMode)
+ALWAYS_INLINE RegisterID* BytecodeGenerator::emitGetFromScopeHelper(RegisterID* dst, RegisterID* scope, const Variable& variable, ResolveMode resolveMode)
 {
     OpGetFromScope::emit(
         this,
@@ -2549,11 +2549,14 @@ RegisterID* BytecodeGenerator::emitGetFromScope(RegisterID* dst, RegisterID* sco
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-RegisterID* BytecodeGenerator::emitResolveAndGetFromScope(RegisterID* dst, RegisterID* resolvedScope, const Variable& variable, ResolveMode resolveMode)
+RegisterID* BytecodeGenerator::emitResolveAndGetFromScope(RegisterID* dst, RegisterID* resolvedScope, const Variable& variable, ResolveMode resolveMode, bool isPrivate)
 {
     switch (variable.offset().kind()) {
-    case VarKind::Stack:
+    case VarKind::Stack: {
+        ASSERT(!isPrivate);
+        UNUSED_VARIABLE(isPrivate);
         return emitGetFromScopeWithVarKindStack(dst, variable);
+    }
     case VarKind::DirectArgument:
         return emitGetFromScopeWithVarKindDirectArgument(dst, argumentsRegister(), variable);
     case VarKind::Scope:
@@ -2575,6 +2578,9 @@ RegisterID* BytecodeGenerator::emitResolveAndGetFromScope(RegisterID* dst, Regis
         return emitGetFromScopeHelper(dst, emitResolveScopeHelper(resolvedScope, variable), variable, resolveMode);
     }
     }
+
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
 }
 
 RegisterID* BytecodeGenerator::emitPutToScope(RegisterID* scope, const Variable& variable, RegisterID* value, ResolveMode resolveMode, InitializationMode initializationMode)
