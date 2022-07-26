@@ -30,14 +30,16 @@ import re
 import subprocess
 import sys
 
-jitTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto", "crypto-aes-SP", "crypto-md5-SP", "crypto-sha1-SP", "date-format-tofte-SP", "date-format-xparb-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "FlightPlanner", "float-mm.c", "gaussian-blur", "gbemu", "gcc-loops-wasm", "hash-map", "HashSet-wasm", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "n-body-SP", "navier-stokes", "octane-code-load", "octane-zlib", "OfflineAssembler", "pdfjs", "prepack-wtb", "quicksort-wasm", "raytrace", "regex-dna-SP", "regexp", "richards", "richards-wasm", "splay", "stanford-crypto-aes", "stanford-crypto-pbkdf2", "stanford-crypto-sha256", "string-unpack-code-SP", "tagcloud-SP", "tsf-wasm", "typescript", "uglify-js-wtb", "UniPoker", "WSL"]
+# jitTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto", "crypto-aes-SP", "crypto-md5-SP", "crypto-sha1-SP", "date-format-tofte-SP", "date-format-xparb-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "FlightPlanner", "float-mm.c", "gaussian-blur", "gbemu", "gcc-loops-wasm", "hash-map", "HashSet-wasm", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "n-body-SP", "navier-stokes", "octane-code-load", "octane-zlib", "OfflineAssembler", "pdfjs", "prepack-wtb", "quicksort-wasm", "raytrace", "regex-dna-SP", "regexp", "richards", "richards-wasm", "splay", "stanford-crypto-aes", "stanford-crypto-pbkdf2", "stanford-crypto-sha256", "string-unpack-code-SP", "tagcloud-SP", "tsf-wasm", "typescript", "uglify-js-wtb", "UniPoker", "WSL"]
 
-nonJITTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto-aes-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "gaussian-blur", "gbemu", "hash-map", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "octane-code-load", "OfflineAssembler", "pdfjs", "prepack-wtb", "raytrace", "regex-dna-SP", "regexp", "splay", "stanford-crypto-aes", "string-unpack-code-SP", "tagcloud-SP", "typescript", "uglify-js-wtb"]
+jitTests = ["typescript"]
+
+# nonJITTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto-aes-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "gaussian-blur", "gbemu", "hash-map", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "octane-code-load", "OfflineAssembler", "pdfjs", "prepack-wtb", "raytrace", "regex-dna-SP", "regexp", "splay", "stanford-crypto-aes", "string-unpack-code-SP", "tagcloud-SP", "typescript", "uglify-js-wtb"]
 
 # Run two groups of tests with each group in a single JSC instance to see how well memory recovers between tests.
-groupTests = ["typescript,acorn-wtb,Air,pdfjs,crypto-aes-SP", "splay,FlightPlanner,prepack-wtb,octane-zlib,3d-cube-SP"]
+# groupTests = ["typescript,acorn-wtb,Air,pdfjs,crypto-aes-SP", "splay,FlightPlanner,prepack-wtb,octane-zlib,3d-cube-SP"]
 
-luaTests = [("hello_world-LJF", "LuaJSFight/hello_world.js", 5), ("list_search-LJF", "LuaJSFight/list_search.js", 5), ("lists-LJF", "LuaJSFight/lists.js", 5), ("string_lists-LJF", "LuaJSFight/string_lists.js", 5), ("richards", "LuaJSFight/richards.js", 5)]
+# luaTests = [("hello_world-LJF", "LuaJSFight/hello_world.js", 5), ("list_search-LJF", "LuaJSFight/list_search.js", 5), ("lists-LJF", "LuaJSFight/lists.js", 5), ("string_lists-LJF", "LuaJSFight/string_lists.js", 5), ("richards", "LuaJSFight/richards.js", 5)]
 
 oneMB = float(1024 * 1024)
 footprintRE = re.compile(r"Current Footprint: (\d+(?:.\d+)?)")
@@ -305,42 +307,42 @@ def main(parser=None):
     current_path = os.getcwd()
     os.chdir(ramification_dir)  # To allow JS libraries to load
 
-    if args.runLuaTests:
-        if args.verbose:
-            print("== LuaJSFight No JIT tests ==")
+    # if args.runLuaTests:
+    #     if args.verbose:
+    #         print("== LuaJSFight No JIT tests ==")
 
-        # Use system malloc for LuaJSFight tests
-        testRunner.setEnv("Malloc", "X")
+    #     # Use system malloc for LuaJSFight tests
+    #     testRunner.setEnv("Malloc", "X")
 
-        scoresDict = runTestList(luaTests, ["--useJIT=false", "--forceMiniVMMode=true"], useJetStream2Harness=False)
+    #     scoresDict = runTestList(luaTests, ["--useJIT=false", "--forceMiniVMMode=true"], useJetStream2Harness=False)
 
-        testResultsDict["LuaJSFight No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+    #     testResultsDict["LuaJSFight No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-        testRunner.unsetEnv("Malloc")
+    #     testRunner.unsetEnv("Malloc")
 
-    if args.runGroupedTests:
-        if args.verbose:
-            print("== Grouped tests ==")
+    # if args.runGroupedTests:
+    #     if args.verbose:
+    #         print("== Grouped tests ==")
 
-        scoresDict = runTestList(groupTests)
+    #     scoresDict = runTestList(groupTests)
 
-        testResultsDict["Grouped Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+    #     testResultsDict["Grouped Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-    if args.runJITTests:
-        if args.verbose:
-            print("== JIT tests ==")
+    # if args.runJITTests:
+    #     if args.verbose:
+    #         print("== JIT tests ==")
 
-        scoresDict = runTestList(jitTests)
+    scoresDict = runTestList(jitTests)
 
-        testResultsDict["JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+        # testResultsDict["JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-    if args.runNoJITTests:
-        if args.verbose:
-            print("== No JIT tests ==")
+    # if args.runNoJITTests:
+    #     if args.verbose:
+    #         print("== No JIT tests ==")
 
-        scoresDict = runTestList(nonJITTests, ["--useJIT=false", "-e", "testIterationCount=1"])
+    #     scoresDict = runTestList(nonJITTests, ["--useJIT=false", "-e", "testIterationCount=1"])
 
-        testResultsDict["No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+    #     testResultsDict["No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
     footprintGeomean = int(geomean(footprintValues) * oneMB)
     peakFootprintGeomean = int(geomean(peakFootprintValues) * oneMB)
