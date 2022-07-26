@@ -29,19 +29,10 @@ import os
 import re
 import subprocess
 import sys
-import pandas as pd
-import numpy as np
-from scipy.stats import ttest_ind
 
 jitTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto", "crypto-aes-SP", "crypto-md5-SP", "crypto-sha1-SP", "date-format-tofte-SP", "date-format-xparb-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "FlightPlanner", "float-mm.c", "gaussian-blur", "gbemu", "gcc-loops-wasm", "hash-map", "HashSet-wasm", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "n-body-SP", "navier-stokes", "octane-code-load", "octane-zlib", "OfflineAssembler", "pdfjs", "prepack-wtb", "quicksort-wasm", "raytrace", "regex-dna-SP", "regexp", "richards", "richards-wasm", "splay", "stanford-crypto-aes", "stanford-crypto-pbkdf2", "stanford-crypto-sha256", "string-unpack-code-SP", "tagcloud-SP", "tsf-wasm", "typescript", "uglify-js-wtb", "UniPoker", "WSL"]
 
 nonJITTests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs", "Babylon", "babylon-wtb", "base64-SP", "Basic", "Box2D", "cdjs", "chai-wtb", "coffeescript-wtb", "crypto-aes-SP", "delta-blue", "earley-boyer", "espree-wtb", "first-inspector-code-load", "gaussian-blur", "gbemu", "hash-map", "jshint-wtb", "json-parse-inspector", "json-stringify-inspector", "lebab-wtb", "mandreel", "ML", "multi-inspector-code-load", "octane-code-load", "OfflineAssembler", "pdfjs", "prepack-wtb", "raytrace", "regex-dna-SP", "regexp", "splay", "stanford-crypto-aes", "string-unpack-code-SP", "tagcloud-SP", "typescript", "uglify-js-wtb"]
-
-# jitTests = ["Air"]
-# nonJITTests = ["Air"]
-# tests = ["3d-cube-SP", "3d-raytrace-SP", "acorn-wtb", "ai-astar", "Air", "async-fs"]
-# jitTests = tests
-# nonJITTests = tests
 
 # Run two groups of tests with each group in a single JSC instance to see how well memory recovers between tests.
 groupTests = ["typescript,acorn-wtb,Air,pdfjs,crypto-aes-SP", "splay,FlightPlanner,prepack-wtb,octane-zlib,3d-cube-SP"]
@@ -206,8 +197,6 @@ class LocalRunner(BaseRunner):
         if extraOptions:
             args.extend(extraOptions)
 
-        args.extend(["--validateOptions=1"])
-
         if useJetStream2Harness:
             args.extend(["-e", "testList='{test}'; runMode='RAMification'".format(test=test), "cli.js"])
         else:
@@ -241,7 +230,7 @@ class LocalRunner(BaseRunner):
         return self.getResults()
 
 
-def runAllTests(parser=None, extraOptions=[]):
+def main(parser=None):
     footprintValues = []
     peakFootprintValues = []
     testResultsDict = {}
@@ -277,8 +266,7 @@ def runAllTests(parser=None, extraOptions=[]):
             else:
                 testName, test, weight = testInfo, testInfo, 1
 
-            if args.verbose:
-                sys.stdout.write("Running {}... ".format(testName))
+            sys.stdout.write("Running {}... ".format(testName))
             testResult = testRunner.runOneTest(test, extraOptions, useJetStream2Harness)
 
             if testResult.returnCode == 0 and testResult.footprint and testResult.peakFootprint:
@@ -317,32 +305,32 @@ def runAllTests(parser=None, extraOptions=[]):
     current_path = os.getcwd()
     os.chdir(ramification_dir)  # To allow JS libraries to load
 
-    # if args.runLuaTests:
-    #     if args.verbose:
-    #         print("== LuaJSFight No JIT tests ==")
+    if args.runLuaTests:
+        if args.verbose:
+            print("== LuaJSFight No JIT tests ==")
 
-    #     # Use system malloc for LuaJSFight tests
-    #     testRunner.setEnv("Malloc", "X")
+        # Use system malloc for LuaJSFight tests
+        testRunner.setEnv("Malloc", "X")
 
-    #     scoresDict = runTestList(luaTests, ["--useJIT=false", "--forceMiniVMMode=true"] + extraOptions, useJetStream2Harness=False)
+        scoresDict = runTestList(luaTests, ["--useJIT=false", "--forceMiniVMMode=true"], useJetStream2Harness=False)
 
-    #     testResultsDict["LuaJSFight No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+        testResultsDict["LuaJSFight No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
-    #     testRunner.unsetEnv("Malloc")
+        testRunner.unsetEnv("Malloc")
 
-    # if args.runGroupedTests:
-    #     if args.verbose:
-    #         print("== Grouped tests ==")
+    if args.runGroupedTests:
+        if args.verbose:
+            print("== Grouped tests ==")
 
-    #     scoresDict = runTestList(groupTests, extraOptions)
+        scoresDict = runTestList(groupTests)
 
-    #     testResultsDict["Grouped Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
+        testResultsDict["Grouped Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
     if args.runJITTests:
         if args.verbose:
             print("== JIT tests ==")
 
-        scoresDict = runTestList(jitTests, extraOptions)
+        scoresDict = runTestList(jitTests)
 
         testResultsDict["JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
@@ -350,7 +338,7 @@ def runAllTests(parser=None, extraOptions=[]):
         if args.verbose:
             print("== No JIT tests ==")
 
-        scoresDict = runTestList(nonJITTests, ["--useJIT=false", "-e", "testIterationCount=1"] + extraOptions)
+        scoresDict = runTestList(nonJITTests, ["--useJIT=false", "-e", "testIterationCount=1"])
 
         testResultsDict["No JIT Tests"] = {"metrics": {"Allocations": ["Geometric"]}, "tests": scoresDict}
 
@@ -358,13 +346,13 @@ def runAllTests(parser=None, extraOptions=[]):
     peakFootprintGeomean = int(geomean(peakFootprintValues) * oneMB)
     totalScore = int(geomean([footprintGeomean, peakFootprintGeomean]))
 
-    if footprintGeomean and args.verbose:
+    if footprintGeomean:
         print("Footprint geomean: {} ({:.3f} MB)".format(footprintGeomean, footprintGeomean / oneMB))
 
-    if peakFootprintGeomean and args.verbose:
+    if peakFootprintGeomean:
         print("Peak Footprint geomean: {} ({:.3f} MB)".format(peakFootprintGeomean, peakFootprintGeomean / oneMB))
 
-    if footprintGeomean and peakFootprintGeomean and args.verbose:
+    if footprintGeomean and peakFootprintGeomean:
         print("Score: {} ({:.3f} MB)".format(totalScore, totalScore / oneMB))
 
     resultsDict = {"RAMification": {"metrics": {"Allocations": {"current": [totalScore]}}, "tests": testResultsDict}}
@@ -381,83 +369,8 @@ def runAllTests(parser=None, extraOptions=[]):
     if hasFailedRuns:
         print("Detected failed run(s), exiting with non-zero return code")
 
-    return hasFailedRuns, totalScore / oneMB
+    return hasFailedRuns
 
-def returnComparedResults(baseScores, configScores, options):
-    baseStat = pd.Series(baseScores).describe()
-    baseMean = baseStat["mean"]
-
-    configStat = pd.Series(configScores).describe()
-    configMean = configStat["mean"]
-
-    pValue = ttest_ind(baseScores, configScores, equal_var=False).pvalue
-    # print(baseScores)
-    # print(configScores)
-    # print(pValue)
-    sig = pValue < 0.05
-    prog = (baseMean - configMean) * 1.0 / baseMean * 100
-    print("base mean: {:.3f}, config mean: {:.3f}, prog: {:.2f}%, sig: {}, options: {}".format(baseMean, configMean, prog, sig, options))
-    return [prog, options, sig]
-
-def getScores(epoch, parser=None, extraOptions=[]):
-    scores = []
-    for i in range(epoch):
-        # print("start epoch: ", i)
-        hasFailedRuns, totalScore = runAllTests(parser, extraOptions)
-        scores.append(totalScore)
-    return scores
-
-def aabb(epoch, parser=None, options=[]):
-    return returnComparedResults(getScores(epoch, parser, []), getScores(epoch, parser, options), options)
-
-def abab(epoch, parser=None, options=[]):
-    baseScores = []
-    configScores = []
-    for i in range(epoch):
-        baseScores += getScores(1, parser, [])
-        configScores += getScores(1, parser, options)
-    return returnComparedResults(baseScores, configScores, options)
-
-paras = [
-    ["--criticalGCMemoryThreshold=", 0.6],
-    ["--concurrentGCMaxHeadroom=", 1.5],
-    ["--concurrentGCPeriodMS=", 2],
-    ["--maximumFunctionForCallInlineCandidateBytecodeCost=", 100],
-    ["--maximumFunctionForClosureCallInlineCandidateBytecodeCost=", 90],
-    ["--maximumFunctionForConstructInlineCandidateBytecoodeCost=", 90],
-]
-
-paraValCombinations = []
-
-def genOptions(vals):
-    options = []
-    for i in range(0, len(paras)):
-        options.append(paras[i][0] + str(vals[i]))
-    return options 
-
-def getAllPossibleOptions(idx, result):
-    if len(paras) > 0 and len(paras[0]) == 2:
-        paraValCombinations.append([y for x, y in paras])
-        return;
-    if idx == len(paras):
-        paraValCombinations.append(list(result))
-        return
-    for val in np.arange(paras[idx][1], paras[idx][2], paras[idx][3]):
-        result.append(val)
-        getAllPossibleOptions(idx + 1, result)
-        result.pop()
-
-def main(parser=None):
-    getAllPossibleOptions(0, [])
-    print(paraValCombinations)
-
-    results = []
-    for vals in paraValCombinations:
-        results.append(abab(4, None, genOptions(vals)))
-
-    results = list(filter(lambda p : p[2], results))
-    results.sort(key=lambda p: p[0], reverse=True)
-    print(results)
 
 if __name__ == "__main__":
     exit(main())
