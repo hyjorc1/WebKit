@@ -896,12 +896,18 @@ JSValue Interpreter::executeProgram(const SourceCode& source, JSGlobalObject*, J
                 }
             }
 
+            const Identifier& ident = JSONPPath.last().m_pathEntryName;
             if (JSONPPath.size() == 1 && JSONPPath.last().m_type != JSONPPathEntryTypeLookup) {
                 RELEASE_ASSERT(baseObject == globalObject);
                 JSGlobalLexicalEnvironment* scope = globalObject->globalLexicalEnvironment();
-                if (scope->hasProperty(globalObject, JSONPPath.last().m_pathEntryName))
+                if (scope->hasProperty(globalObject, ident)) {
+                    RETURN_IF_EXCEPTION(throwScope, JSValue());
+                    PropertySlot slot(scope, PropertySlot::InternalMethodType::Get);
+                    JSGlobalLexicalEnvironment::getOwnPropertySlot(scope, globalObject, ident, slot);
+                    if (slot.getValue(globalObject, ident) == jsTDZValue())
+                        return throwException(globalObject, throwScope, createTDZError(globalObject));
                     baseObject = scope;
-                RETURN_IF_EXCEPTION(throwScope, JSValue());
+                }
             }
 
             PutPropertySlot slot(baseObject);
