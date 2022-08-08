@@ -910,6 +910,7 @@ JSValue Interpreter::executeProgram(const SourceCode& source, JSGlobalObject*, J
                         return throwException(globalObject, throwScope, createTDZError(globalObject));
                     baseObject = scope;
                 }
+                RETURN_IF_EXCEPTION(throwScope, JSValue());
             }
 
             PutPropertySlot slot(baseObject);
