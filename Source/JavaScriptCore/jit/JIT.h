@@ -361,6 +361,9 @@ namespace JSC {
         void emitJumpSlowCaseIfNotJSCell(JSValueRegs, VirtualRegister);
 
         template<typename Op>
+        void emit_compare(const JSInstruction*, RelationalCondition);
+        void emit_compareImpl(VirtualRegister dst, VirtualRegister op1, VirtualRegister op2, RelationalCondition);
+        template<typename Op>
         void emit_compareAndJump(const JSInstruction*, RelationalCondition);
         void emit_compareAndJumpImpl(VirtualRegister op1, VirtualRegister op2, unsigned target, RelationalCondition);
         template<typename Op>
@@ -369,6 +372,10 @@ namespace JSC {
         template<typename Op>
         void emit_compareUnsignedAndJump(const JSInstruction*, RelationalCondition);
         void emit_compareUnsignedAndJumpImpl(VirtualRegister op1, VirtualRegister op2, unsigned target, RelationalCondition);
+        template<typename Op, typename SlowOperation>
+        void emit_compareSlow(const JSInstruction*, DoubleCondition, SlowOperation, Vector<SlowCaseEntry>::iterator&);
+        template<typename SlowOperation>
+        void emit_compareSlowImpl(VirtualRegister dst, VirtualRegister op1, VirtualRegister op2, size_t instructionSize, DoubleCondition condition, SlowOperation operation, Vector<SlowCaseEntry>::iterator& iter);
         template<typename Op, typename SlowOperation>
         void emit_compareAndJumpSlow(const JSInstruction*, DoubleCondition, SlowOperation, bool invert, Vector<SlowCaseEntry>::iterator&);
         template<typename SlowOperation>
@@ -446,6 +453,10 @@ namespace JSC {
         void emit_op_jnundefined_or_null(const JSInstruction*);
         void emit_op_jeq_ptr(const JSInstruction*);
         void emit_op_jneq_ptr(const JSInstruction*);
+        void emit_op_less(const JSInstruction*);
+        void emit_op_lesseq(const JSInstruction*);
+        void emit_op_greater(const JSInstruction*);
+        void emit_op_greatereq(const JSInstruction*);
         void emit_op_jless(const JSInstruction*);
         void emit_op_jlesseq(const JSInstruction*);
         void emit_op_jgreater(const JSInstruction*);
@@ -566,6 +577,10 @@ namespace JSC {
         void emitSlow_op_has_private_name(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_has_private_brand(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_instanceof(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
+        void emitSlow_op_less(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
+        void emitSlow_op_lesseq(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
+        void emitSlow_op_greater(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
+        void emitSlow_op_greatereq(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_jless(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_jlesseq(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_jgreater(const JSInstruction*, Vector<SlowCaseEntry>::iterator&);

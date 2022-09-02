@@ -1612,7 +1612,35 @@ LLINT_SLOW_PATH_DECL(slow_path_jfalse)
     LLINT_BRANCH(!getOperand(callFrame, bytecode.m_condition).toBoolean(globalObject));
 }
 
-LLINT_SLOW_PATH_DECL(slow_path_jless)
+LLINT_SLOW_PATH_DECL(slow_path_less) // <---- less
+{
+    LLINT_BEGIN();
+    auto bytecode = pc->as<OpLess>();
+    LLINT_RETURN(jsBoolean(jsLess<true>(globalObject, getOperand(callFrame, bytecode.m_lhs), getOperand(callFrame, bytecode.m_rhs))));
+}
+
+LLINT_SLOW_PATH_DECL(slow_path_lesseq)
+{
+    LLINT_BEGIN();
+    auto bytecode = pc->as<OpLesseq>();
+    LLINT_RETURN(jsBoolean(jsLessEq<true>(globalObject, getOperand(callFrame, bytecode.m_lhs), getOperand(callFrame, bytecode.m_rhs))));
+}
+
+LLINT_SLOW_PATH_DECL(slow_path_greater)
+{
+    LLINT_BEGIN();
+    auto bytecode = pc->as<OpGreater>();
+    LLINT_RETURN(jsBoolean(jsLess<false>(globalObject, getOperand(callFrame, bytecode.m_rhs), getOperand(callFrame, bytecode.m_lhs))));
+}
+
+LLINT_SLOW_PATH_DECL(slow_path_greatereq) // <---- greatereq
+{
+    LLINT_BEGIN();
+    auto bytecode = pc->as<OpGreatereq>();
+    LLINT_RETURN(jsBoolean(jsLessEq<false>(globalObject, getOperand(callFrame, bytecode.m_rhs), getOperand(callFrame, bytecode.m_lhs))));
+}
+
+LLINT_SLOW_PATH_DECL(slow_path_jless) // <---- jless
 {
     LLINT_BEGIN();
     auto bytecode = pc->as<OpJless>();
@@ -1661,7 +1689,7 @@ LLINT_SLOW_PATH_DECL(slow_path_jgreatereq)
     LLINT_BRANCH(jsLessEq<false>(globalObject, getOperand(callFrame, bytecode.m_rhs), getOperand(callFrame, bytecode.m_lhs)));
 }
 
-LLINT_SLOW_PATH_DECL(slow_path_jngreatereq)
+LLINT_SLOW_PATH_DECL(slow_path_jngreatereq) // <---- jngreatereq
 {
     LLINT_BEGIN();
     auto bytecode = pc->as<OpJngreatereq>();

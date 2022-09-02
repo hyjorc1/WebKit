@@ -96,7 +96,11 @@ LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_iterator_next_get_done);
 LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_iterator_next_get_value);
 LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_jtrue);
 LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_jfalse);
-LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_jless);
+LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_less); // <---- jless
+LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_lesseq);
+LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_greater);
+LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_greatereq);
+LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_jless); // <---- jless
 LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_jnless);
 LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_jgreater);
 LLINT_SLOW_PATH_HIDDEN_DECL(slow_path_jngreater);

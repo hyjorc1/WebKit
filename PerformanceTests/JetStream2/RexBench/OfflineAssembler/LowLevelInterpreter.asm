@@ -1339,25 +1339,25 @@ _llint_op_new_regexp:
 
 _llint_op_less:
     traceExecution()
-    callOpcodeSlowPath(_slow_path_less)
+    callOpcodeSlowPath(_llint_slow_path_less)
     dispatch(constexpr op_less_length)
 
 
 _llint_op_lesseq:
     traceExecution()
-    callOpcodeSlowPath(_slow_path_lesseq)
+    callOpcodeSlowPath(_llint_slow_path_lesseq)
     dispatch(constexpr op_lesseq_length)
 
 
 _llint_op_greater:
     traceExecution()
-    callOpcodeSlowPath(_slow_path_greater)
+    callOpcodeSlowPath(_llint_slow_path_greater)
     dispatch(constexpr op_greater_length)
 
 
 _llint_op_greatereq:
     traceExecution()
-    callOpcodeSlowPath(_slow_path_greatereq)
+    callOpcodeSlowPath(_llint_slow_path_greatereq)
     dispatch(constexpr op_greatereq_length)
 
 
