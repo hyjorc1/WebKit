@@ -578,6 +578,21 @@ public:
 
         result = tmpForType(Types::V128);
 
+        if (isX86() && airOp == B3::Air::VectorExtaddPairwise) {
+            // https://github.com/WebAssembly/simd/pull/380
+            if (info.lane == SIMDLane::i16x8 && info.signMode == SIMDSignMode::Unsigned)
+                append(airOp, Arg::simdInfo(info), v, result, tmpForType(Types::V128), tmpForType(Types::V128));
+            else {
+                auto mask = tmpForType(Types::V128);
+                if (info.lane == SIMDLane::i16x8)
+                    append(VectorSplat16, addConstant(Types::I32, 1), mask);
+                else
+                    append(VectorSplat8, addConstant(Types::I32, 1), mask);
+                append(airOp, Arg::simdInfo(info), v, result, mask);
+            }
+            return { };
+        }
+
         if (isX86() && airOp == B3::Air::VectorConvert && info.signMode == SIMDSignMode::Unsigned) {
             append(VectorConvertUnsigned, v, result, tmpForType(Types::V128));
             return { };
@@ -615,7 +630,6 @@ public:
                 }
                 return { };
             }
-
         }
 
         if (isValidForm(airOp, Arg::Tmp, Arg::Tmp)) {

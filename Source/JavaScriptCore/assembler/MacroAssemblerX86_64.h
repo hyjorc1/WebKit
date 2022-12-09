@@ -3334,8 +3334,8 @@ public:
             break;
         case SIMDLane::i16x8:
             m_assembler.vpxor_rrr(tmp, tmp, tmp);
-            m_assembler.vpacksswb_rrr(vec, tmp, tmp);
-            m_assembler.vpmovmskb_rr(vec, dest);
+            m_assembler.vpacksswb_rrr(tmp, vec, tmp);
+            m_assembler.vpmovmskb_rr(tmp, dest);
             break;
         case SIMDLane::i32x4:
             m_assembler.vmovmskps_rr(vec, dest);
@@ -3348,7 +3348,48 @@ public:
         }
     }
 
-    void vectorExtaddPairwise(SIMDInfo simdInfo, FPRegisterID vec, FPRegisterID dest) { UNUSED_PARAM(simdInfo); UNUSED_PARAM(vec); UNUSED_PARAM(dest); }
+    void vectorExtaddPairwise(SIMDInfo simdInfo, FPRegisterID vec, FPRegisterID dest, FPRegisterID scratch)
+    {
+        // https://github.com/WebAssembly/simd/pull/380
+        switch (simdInfo.lane) {
+        case SIMDLane::i8x16:
+            if (simdInfo.signMode == SIMDSignMode::Signed) {
+                if (supportsAVXForSIMD()) {
+                    m_assembler.vmovdqa_rr(scratch, scratch);
+                    m_assembler.vpmaddubsw_rrr(vec, scratch, dest);
+                } else
+                    RELEASE_ASSERT_NOT_REACHED();
+            } else {
+                if (supportsAVXForSIMD())
+                    m_assembler.vpmaddubsw_rrr(scratch, vec, dest);
+                else
+                    RELEASE_ASSERT_NOT_REACHED();
+            }
+            return;
+        case SIMDLane::i16x8:
+            if (simdInfo.signMode == SIMDSignMode::Signed) {
+                if (supportsAVXForSIMD())
+                    m_assembler.vpmaddwd_rrr(vec, scratch, dest);
+                else
+                    RELEASE_ASSERT_NOT_REACHED();
+            } else
+                RELEASE_ASSERT_NOT_REACHED();
+            return;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
+
+    void vectorExtaddPairwise(SIMDInfo simdInfo, FPRegisterID x, FPRegisterID dest, FPRegisterID tmp_y, FPRegisterID tmp_x)
+    {
+        ASSERT_UNUSED(simdInfo, simdInfo.lane == SIMDLane::i16x8 && simdInfo.signMode == SIMDSignMode::Unsigned);
+        if (supportsAVXForSIMD()) {
+            m_assembler.vpsrld_i8rr(16, x, tmp_y);
+            m_assembler.vpblendw_i8rrr(0xAA, tmp_y, x, tmp_x);
+            m_assembler.vpaddd_rrr(tmp_y, tmp_x, dest);
+        } else
+            RELEASE_ASSERT_NOT_REACHED();
+    }
 
     void vectorAvgRound(SIMDInfo simdInfo, FPRegisterID a, FPRegisterID b, FPRegisterID dest)
     {
