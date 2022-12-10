@@ -4103,11 +4103,11 @@ auto AirIRGenerator::addSIMDShuffle(v128_t imm, ExpressionType a, ExpressionType
         v128_t mask;
         mask.u64x2[0] = 0x1010101010101010;
         mask.u64x2[1] = 0x1010101010101010;
-        append(VectorSub, Arg::simdInfo(SIMDInfo { SIMDLane::i16x8, SIMDSignMode::None }), addConstant(mask), indexes, indexes); // indexes = indexes VectorSub mask
+        append(VectorSub, Arg::simdInfo(SIMDInfo { SIMDLane::i8x16, SIMDSignMode::None }), indexes, addConstant(mask), indexes);
         append(B3::Air::VectorSwizzle, b, indexes, result2);
 
         // Since each index in [0, 31], we can return result2 VectorOr result.
-        append(VectorOr, result, result2, result);
+        append(VectorOr, Arg::simdInfo(SIMDInfo { SIMDLane::v128, SIMDSignMode::None }), result, result2, result);
         return { };
     }
 
