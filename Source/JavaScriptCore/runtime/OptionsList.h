@@ -577,6 +577,7 @@ bool canUseWebAssemblyFastMemory();
     v(Bool, forceAllFunctionsToUseSIMD, false, Normal, "Force all functions to act conservatively w.r.t fp/vector registers for testing.") \
     v(Bool, useWebAssemblySIMD, true, Normal, "Allow the new simd instructions and types from the wasm simd spec.") \
     v(Bool, useWebAssemblyTailCalls, false, Normal, "Allow the new instructions from the wasm tail calls spec.") \
+    v(Bool, useCheck, false, Normal, "Allow the new instructions from the wasm tail calls spec.") \
 
 
 enum OptionEquivalence {

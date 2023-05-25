@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "wtf/DataLog.h"
 #include <initializer_list>
 #include <limits>
 #include <optional>
@@ -316,9 +317,9 @@ public:
 
         size_t sizeToAllocate = newCapacity * sizeof(T);
         T* newBuffer = nullptr;
-        if constexpr (action == FailureAction::Crash)
+        if constexpr (action == FailureAction::Crash) {
             newBuffer = static_cast<T*>(Malloc::malloc(sizeToAllocate));
-        else {
+        } else {
             newBuffer = static_cast<T*>(Malloc::tryMalloc(sizeToAllocate));
             if (UNLIKELY(!newBuffer))
                 return false;
@@ -401,7 +402,7 @@ template<typename T, size_t inlineCapacity, typename Malloc = VectorBufferMalloc
 
 template<typename T, typename Malloc>
 class VectorBuffer<T, 0, Malloc> : private VectorBufferBase<T, Malloc> {
-private:
+public:
     typedef VectorBufferBase<T, Malloc> Base;
 public:
     VectorBuffer()
@@ -474,7 +475,7 @@ private:
 };
 
 template<typename T, size_t inlineCapacity, typename Malloc>
-class VectorBuffer : private VectorBufferBase<T, Malloc> {
+class VectorBuffer : public VectorBufferBase<T, Malloc> {
     WTF_MAKE_NONCOPYABLE(VectorBuffer);
 private:
     typedef VectorBufferBase<T, Malloc> Base;
@@ -665,9 +666,9 @@ struct UnsafeVectorOverflow {
 
 // Template default values are in Forward.h.
 template<typename T, size_t inlineCapacity, typename OverflowHandler, size_t minCapacity, typename Malloc>
-class Vector : private VectorBuffer<T, inlineCapacity, Malloc> {
+class Vector : public VectorBuffer<T, inlineCapacity, Malloc> {
     WTF_MAKE_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(Vector);
-private:
+public:
     typedef VectorBuffer<T, inlineCapacity, Malloc> Base;
     typedef VectorTypeOperations<T> TypeOperations;
     friend class JSC::LLIntOffsetsExtractor;
@@ -948,6 +949,7 @@ private:
     void asanBufferSizeWillChangeTo(size_t);
 
     using Base::m_size;
+public:
     using Base::buffer;
     using Base::capacity;
     using Base::swap;

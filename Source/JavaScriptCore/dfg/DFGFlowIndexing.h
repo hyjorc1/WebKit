@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "wtf/DataLog.h"
+#include "wtf/RawPointer.h"
 #if ENABLE(DFG_JIT)
 
 #include "DFGGraph.h"
@@ -93,6 +95,7 @@ public:
     
     NodeFlowProjection nodeProjection(unsigned index) const
     {
+        check(" nodeProjection start ");
         if (index < m_nodeIndexToShadowIndex.size())
             return NodeFlowProjection(m_graph.nodeAt(index));
         return NodeFlowProjection(
@@ -100,11 +103,48 @@ public:
             NodeFlowProjection::Shadow);
     }
     
+    void check(const char* str) const
+    {
+        // if (!Options::useCheck())
+        //     return;
+        const unsigned* buffer = m_shadowIndexToNodeIndex.buffer();
+
+        if (initializedOrExpanded) {
+            if (!addr1 || !addr2 || !addr3 || !addr4 || !buffer) {
+                dataLogLn("<YIJIA> - Thread:", RawPointer(&Thread::current()), " CHECK ERROR NULLPTR in ", str,
+                " addr1:", RawPointer(addr1), 
+                " addr2:", RawPointer(addr2),
+                " addr3:", RawPointer(addr3), 
+                " addr4:", RawPointer(addr4),
+                " buffer:", RawPointer(buffer),
+                " m_shadowIndexToNodeIndex.size:", m_shadowIndexToNodeIndex.size());
+                CRASH();
+            }
+        }
+
+        if (addr1 == addr2 && addr3 == addr4 && addr1 == buffer)
+            return;
+
+        dataLogLn("<YIJIA> - Thread:", RawPointer(&Thread::current()), " CHECK ERROR NOT MATCHING in ", str,
+            " addr1:", RawPointer(addr1), 
+            " addr2:", RawPointer(addr2),
+            " addr3:", RawPointer(addr3), 
+            " addr4:", RawPointer(addr4),
+            " buffer:", RawPointer(buffer),
+            " m_shadowIndexToNodeIndex.size:", m_shadowIndexToNodeIndex.size());
+        CRASH();
+    }
+
 private:
     Graph& m_graph;
     unsigned m_numIndices;
     Vector<unsigned, 0, UnsafeVectorOverflow> m_nodeIndexToShadowIndex;
+    void* addr1 { nullptr };
+    void* addr2 { nullptr };
     Vector<unsigned, 0, UnsafeVectorOverflow> m_shadowIndexToNodeIndex;
+    void* addr3 { nullptr };
+    void* addr4 { nullptr };
+    bool initializedOrExpanded { false };
 };
 
 } } // namespace JSC::DFG

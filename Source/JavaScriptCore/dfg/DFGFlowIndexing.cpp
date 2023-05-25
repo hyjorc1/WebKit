@@ -25,6 +25,7 @@
 
 #include "config.h"
 #include "DFGFlowIndexing.h"
+#include "wtf/DataLog.h"
 
 #if ENABLE(DFG_JIT)
 
@@ -45,6 +46,8 @@ FlowIndexing::~FlowIndexing()
 
 void FlowIndexing::recompute()
 {
+    check(" recompute start ");
+
     unsigned numNodeIndices = m_graph.maxNodeCount();
     
     m_nodeIndexToShadowIndex.resize(numNodeIndices);
@@ -58,11 +61,27 @@ void FlowIndexing::recompute()
         for (Node* node : *block) {
             if (node->op() != Phi)
                 continue;
-            
+
             unsigned nodeIndex = node->index();
             unsigned shadowIndex = m_numIndices++;
             m_nodeIndexToShadowIndex[nodeIndex] = shadowIndex;
             m_shadowIndexToNodeIndex.append(nodeIndex);
+
+            unsigned* buffer = m_shadowIndexToNodeIndex.buffer();
+            if (addr1 != buffer || addr2 != buffer || addr3 != buffer || addr4 != buffer) {
+                dataLogLn("<YIJIA> - Thread:", RawPointer(&Thread::current()), " recompute after append ",
+                    " addr1:", RawPointer(addr1), 
+                    " addr2:", RawPointer(addr2),
+                    " addr3:", RawPointer(addr3), 
+                    " addr4:", RawPointer(addr4),
+                    " buffer:", RawPointer(buffer),
+                    " m_shadowIndexToNodeIndex.size:", m_shadowIndexToNodeIndex.size());
+                addr1 = buffer;
+                addr2 = buffer;
+                addr3 = buffer;
+                addr4 = buffer;
+                initializedOrExpanded = true;
+            }
             DFG_ASSERT(m_graph, nullptr, m_shadowIndexToNodeIndex.size() + numNodeIndices == m_numIndices);
             DFG_ASSERT(m_graph, nullptr, m_shadowIndexToNodeIndex[shadowIndex - numNodeIndices] == nodeIndex);
         }
