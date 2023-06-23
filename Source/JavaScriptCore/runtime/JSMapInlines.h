@@ -35,4 +35,10 @@ ALWAYS_INLINE void JSMap::set(JSGlobalObject* globalObject, JSValue key, JSValue
     add(globalObject, key, value);
 }
 
+// ALWAYS_INLINE JSValue JSMap::size(JSGlobalObject* globalObject)
+// {
+//     UNUSED_PARAM(globalObject);
+//     return JSValue(Base::size());
+// }
+
 } // namespace JSC

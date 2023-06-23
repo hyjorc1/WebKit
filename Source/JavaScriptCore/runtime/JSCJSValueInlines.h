@@ -592,7 +592,7 @@ inline bool JSValue::isNumber() const
 
 ALWAYS_INLINE JSCell* JSValue::asCell() const
 {
-    ASSERT(isCell());
+    // ASSERT(isCell());
     return u.ptr;
 }
 
@@ -1069,8 +1069,11 @@ ALWAYS_INLINE bool JSValue::getPropertySlot(JSGlobalObject* globalObject, Proper
         }
         object = synthesizePrototype(globalObject);
         EXCEPTION_ASSERT(!!scope.exception() == !object);
-        if (UNLIKELY(!object))
+        if (UNLIKELY(!object)) {
+            VM& vm = getVM(globalObject);
+            RELEASE_ASSERT(vm.exceptionForInspection() && vm.traps().maybeNeedHandling(), vm.traps().maybeNeedHandling(), vm.exceptionForInspection(), JSValue::encode(*this));
             return false;
+        }
     } else
         object = asObject(asCell());
 

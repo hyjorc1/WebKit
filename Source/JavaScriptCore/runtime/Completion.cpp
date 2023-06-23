@@ -38,6 +38,7 @@
 #include "ModuleAnalyzer.h"
 #include "Parser.h"
 #include "ScriptProfilingScope.h"
+#include "wtf/DataLog.h"
 
 namespace JSC {
 
@@ -262,7 +263,6 @@ JSInternalPromise* importModule(JSGlobalObject* globalObject, const Identifier& 
     JSLockHolder lock(vm);
     RELEASE_ASSERT(vm.atomStringTable() == Thread::current().atomStringTable());
     RELEASE_ASSERT(!vm.isCollectorBusyOnCurrentThread());
-
     return globalObject->moduleLoader()->requestImportModule(globalObject, moduleName, referrer, parameters, scriptFetcher);
 }
 

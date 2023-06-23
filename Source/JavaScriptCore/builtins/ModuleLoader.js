@@ -94,6 +94,7 @@ function newRegistryEntry(key)
         fetch: @undefined,
         instantiate: @undefined,
         satisfy: @undefined,
+        isPureSatisfy: false,
         dependencies: [], // To keep the module order, we store the module keys in the array.
         module: @undefined, // JSModuleRecord
         linkError: @undefined,
@@ -101,6 +102,7 @@ function newRegistryEntry(key)
         evaluated: false,
         then: @undefined,
         isAsync: false,
+        id: "NAN.js",
     };
 }
 
@@ -118,6 +120,8 @@ function ensureRegistered(key)
     entry = @newRegistryEntry(key);
     this.registry.@set(key, entry);
 
+    let size = this.registry.@size;
+    entry.id = (size + ".js");
     return entry;
 }
 
@@ -186,23 +190,34 @@ function requestFetch(entry, parameters, fetcher)
 }
 
 @visibility=PrivateRecursive
-function requestInstantiate(entry, parameters, fetcher)
+function requestInstantiate(entry, parameters, fetcher, root)
 {
     // https://whatwg.github.io/loader/#request-instantiate
 
     "use strict";
+    @$vm.print("RI 1 - entry.key ", entry.id, " ", root);
 
     // entry.instantiate is set if fetch succeeds.
-    if (entry.instantiate)
-        return entry.instantiate;
+    if (entry.instantiate) {
+        @$vm.print("RI 2 cached - entry.key ", entry.id, " ", root);
+        return entry.instantiate; // Promise
+    }
 
     var instantiatePromise = (async () => {
-        var source = await this.requestFetch(entry, parameters, fetcher);
+        var source;
+        @$vm.print("RI 3 before await requestFetch - entry.key ", entry.id, " ", root);
+        source = await this.requestFetch(entry, parameters, fetcher);
+        @$vm.print("RI 4 after  await requestFetch - entry.key ", entry.id, " ", root);
+        
         // https://html.spec.whatwg.org/#fetch-a-single-module-script
         // Now fetching request succeeds. Then even if instantiation fails, we should cache it.
         // Instantiation won't be retried.
-        if (entry.instantiate)
-            return await entry.instantiate;
+        if (entry.instantiate) {
+            @$vm.print("RI 5 cached before await entry.instantiate - entry.key ", entry.id, " ", root);
+            let result = await entry.instantiate; // Promise.resolve(await entry.instantiate)
+            @$vm.print("RI 6 cached after  await entry.instantiate - entry.key ", entry.id, " ", root);
+            return result;
+        }
         entry.instantiate = instantiatePromise;
 
         var key = entry.key;
@@ -220,60 +235,105 @@ function requestInstantiate(entry, parameters, fetcher)
         entry.dependencies = dependencies;
         entry.module = moduleRecord;
         @setStateToMax(entry, @ModuleSatisfy);
-        return entry;
+        @$vm.print("RI 7 return entry - entry.key ", entry.id, " ", root);
+        return entry; // Promise.resolve(entry);
     })();
-    return instantiatePromise;
+    return instantiatePromise; // Promise if resolved return entry
 }
 
 @visibility=PrivateRecursive
-function requestSatisfy(entry, parameters, fetcher, visited)
+function requestSatisfyUtil(entry, parameters, fetcher, visited, root, impureSatisfies)
 {
     // https://html.spec.whatwg.org/#internal-module-script-graph-fetching-procedure
 
     "use strict";
+    @$vm.print("RS 1 - entry.key ", entry.id, " ", root);
 
-    if (entry.satisfy)
+    if (entry.satisfy) {
+        @$vm.print("RS 2 cached - entry.key ", entry.id, " ", root);
         return entry.satisfy;
+    }
 
     visited.@add(entry);
-    var satisfyPromise = this.requestInstantiate(entry, parameters, fetcher).then((entry) => {
-        if (entry.satisfy)
+    var satisfyPromise = this.requestInstantiate(entry, parameters, fetcher, root).then((entry) => {
+        @$vm.print("RS 3 >>>>>>>>>>>>>>>>>>>> RIed - entry.key ", entry.id, " ", root);
+
+        if (entry.satisfy) {
+            @$vm.print("RS 4 <<<<<<<<<<<<<<<<<<<< cached - entry.key ", entry.id, " ", root);
             return entry.satisfy;
+        }
 
         var depLoads = this.requestedModuleParameters(entry.module);
+
+        var str = " ### " + entry.id + " -> [ ";
+
         for (var i = 0, length = entry.dependencies.length; i < length; ++i) {
             var parameters = depLoads[i];
             var depEntry = entry.dependencies[i];
             var promise;
+            var promiseStr = "";
 
-            // Recursive resolving. The dependencies of this entry is being resolved or already resolved.
-            // Stop tracing the circular dependencies.
-            // But to retrieve the instantiated module record correctly,
-            // we need to wait for the instantiation for the dependent module.
-            // For example, reaching here, the module is starting resolving the dependencies.
-            // But the module may or may not reach the instantiation phase in the loader's pipeline.
-            // If we wait for the Satisfy for this module, it construct the circular promise chain and
-            // rejected by the Promises runtime. Since only we need is the instantiated module, instead of waiting
-            // the Satisfy for this module, we just wait Instantiate for this.
-            if (visited.@has(depEntry))
-                promise = this.requestInstantiate(depEntry, parameters, fetcher);
-            else {
+            if (visited.@has(depEntry)) {
+                @$vm.print("RS 5 need RI for dep - entry.key ", entry.id, " ", depEntry.id, " ", root);
+                promise = this.requestInstantiate(depEntry, parameters, fetcher, root);
+                promiseStr = "RI";
+            } else {
                 // Currently, module loader do not pass any information for non-top-level module fetching.
-                promise = this.requestSatisfy(depEntry, parameters, fetcher, visited);
+                @$vm.print("RS 6 need RS for dep - entry.key ", entry.id, " ", depEntry.id, " ", root);
+                promise = this.requestSatisfyUtil(depEntry, parameters, fetcher, visited, root, impureSatisfies);
+                promiseStr = "RS";
             }
+            str +=  promiseStr + "(" + depEntry.id + "), ";
             @putByValDirect(depLoads, i, promise);
         }
+        str += "]";
 
-        return @InternalPromise.internalAll(depLoads).then((entries) => {
-            if (entry.satisfy)
+        @$vm.print(str);
+        @$vm.print("RS 9 <<<<<<<<<<<<<<<<<<<< return satisfyingPromise - entry.key ", entry.id, " ", root);
+
+        return @InternalPromise.internalAll(depLoads).then((depEntries) => {
+            if (entry.satisfy) {
                 return entry;
-            @setStateToMax(entry, @ModuleLink);
-            entry.satisfy = satisfyPromise;
+            }
+
+            entry.isPureSatisfy = true;
+            for (var j = 0, length = depEntries.length; j < length; ++j) {
+                if (!depEntries[j].isPureSatisfy) {
+                    entry.isPureSatisfy = false;
+                    break;
+                }
+            }
+            
+            if (entry.isPureSatisfy) {
+                // @$vm.print("RS 10 all depLoads done 1 - entry.key ", entry.id, " ", root);
+                @setStateToMax(entry, @ModuleLink);
+                entry.satisfy = satisfyPromise;
+            } else {
+                impureSatisfies.@add(entry);
+            }
             return entry;
         });
     });
 
     return satisfyPromise;
+}
+
+@visibility=PrivateRecursive
+function requestSatisfy(entry, parameters, fetcher, visited, root)
+{
+    "use strict";
+
+    var impureSatisfies = new @Set;
+    return this.requestSatisfyUtil(entry, parameters, fetcher, visited, root, impureSatisfies).then((entry) => {
+        for (var impureSatisfy of impureSatisfies) {
+            @setStateToMax(impureSatisfy, @ModuleLink);
+            impureSatisfy.satisfy = (async () => {
+                return impureSatisfy;
+            })();
+            impureSatisfy.isPureSatisfy = true;
+        }
+        return entry;
+    });
 }
 
 // Linking semantics.
@@ -287,6 +347,8 @@ function link(entry, fetcher)
 
     if (!entry.linkSucceeded)
         throw entry.linkError;
+    if (entry.state < @ModuleLink)
+        @throwTypeError("Requested module is not instantiated yet.");
     if (entry.state === @ModuleReady)
         return;
     @setStateToMax(entry, @ModuleReady);
@@ -385,7 +447,9 @@ async function loadModule(key, parameters, fetcher)
     var importMap = @importMapStatus();
     if (importMap)
         await importMap;
-    var entry = await this.requestSatisfy(this.ensureRegistered(key), parameters, fetcher, new @Set);
+    var entry = this.ensureRegistered(key);
+    @$vm.print("loadModule 1 -> requestSatisfy ", entry.id);   // <- 1 call (first one)
+    entry = await this.requestSatisfy(entry, parameters, fetcher, new @Set, entry.id);
     return entry.key;
 }
 
@@ -395,9 +459,7 @@ function linkAndEvaluateModule(key, fetcher)
     "use strict";
 
     var entry = this.ensureRegistered(key);
-    if (entry.state < @ModuleLink)
-        @throwTypeError("Requested module is not instantiated yet.");
-
+    @$vm.print("linkAndEvaluateModule 1 ", entry.id);
     this.link(entry, fetcher);
     return this.moduleEvaluation(entry, fetcher);
 }
@@ -411,7 +473,10 @@ async function loadAndEvaluateModule(moduleName, parameters, fetcher)
     if (importMap)
         await importMap;
     var key = this.resolve(moduleName, @undefined, fetcher);
+    var entry = this.ensureRegistered(key);
+    @$vm.print("loadAndEvaluateModule 1 -> loadModule ", entry.id);
     key = await this.loadModule(key, parameters, fetcher);
+    @$vm.print("loadAndEvaluateModule 2 -> linkAndEvaluateModule ", entry.id);
     return await this.linkAndEvaluateModule(key, fetcher);
 }
 
@@ -424,7 +489,10 @@ async function requestImportModule(moduleName, referrer, parameters, fetcher)
     if (importMap)
         await importMap;
     var key = this.resolve(moduleName, referrer, fetcher);
-    var entry = await this.requestSatisfy(this.ensureRegistered(key), parameters, fetcher, new @Set);
+    var entry = this.ensureRegistered(key);
+    @$vm.print("requestImportModule 1 -> requestSatisfy ", entry.id);
+    entry = await this.requestSatisfy(entry, parameters, fetcher, new @Set, entry.id);
+    @$vm.print("requestImportModule 2 -> linkAndEvaluateModule ", entry.id);
     await this.linkAndEvaluateModule(entry.key, fetcher);
     return this.getModuleNamespaceObject(entry.module);
 }

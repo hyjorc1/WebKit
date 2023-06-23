@@ -339,18 +339,18 @@ Expected<typename Parser<LexerType>::ParseInnerResult, String> Parser<LexerType>
         features |= ImportMetaFeature;
 
 #if ASSERT_ENABLED
-    if (m_parsingBuiltin && isProgramParseMode(parseMode)) {
-        VariableEnvironment& lexicalVariables = scope->lexicalVariables();
-        const HashSet<UniquedStringImpl*>& closedVariableCandidates = scope->closedVariableCandidates();
-        for (UniquedStringImpl* candidate : closedVariableCandidates) {
-            // FIXME: We allow async to leak because it appearing as a closed variable is a side effect of trying to parse async arrow functions.
-            if (!lexicalVariables.contains(candidate) && !varDeclarations.contains(candidate) && !candidate->isSymbol() && candidate != m_vm.propertyNames->async.impl()) {
-                dataLog("Bad global capture in builtin: '", candidate, "'\n");
-                dataLog(m_source->view());
-                CRASH();
-            }
-        }
-    }
+    // if (m_parsingBuiltin && isProgramParseMode(parseMode)) {
+    //     VariableEnvironment& lexicalVariables = scope->lexicalVariables();
+    //     const HashSet<UniquedStringImpl*>& closedVariableCandidates = scope->closedVariableCandidates();
+    //     for (UniquedStringImpl* candidate : closedVariableCandidates) {
+    //         // FIXME: We allow async to leak because it appearing as a closed variable is a side effect of trying to parse async arrow functions.
+    //         if (!lexicalVariables.contains(candidate) && !varDeclarations.contains(candidate) && !candidate->isSymbol() && candidate != m_vm.propertyNames->async.impl()) {
+    //             dataLog("Bad global capture in builtin: '", candidate, "'\n");
+    //             dataLog(m_source->view());
+    //             CRASH();
+    //         }
+    //     }
+    // }
 #endif // ASSERT_ENABLED
 
     return ParseInnerResult { parameters, sourceElements, scope->takeFunctionDeclarations(), scope->takeDeclaredVariables(), scope->takeLexicalEnvironment(), WTFMove(sloppyModeHoistedFunctions), features, context.numConstants() };

@@ -36,6 +36,10 @@
 #include "SyntheticModuleRecord.h"
 #include "VMTrapsInlines.h"
 #include "WebAssemblyModuleRecord.h"
+#include "runtime/JSCJSValue.h"
+#include "wtf/DataLog.h"
+#include "wtf/RawPointer.h"
+#include "wtf/Threading.h"
 
 namespace JSC {
 namespace AbstractModuleRecordInternal {
@@ -153,7 +157,55 @@ AbstractModuleRecord* AbstractModuleRecord::hostResolveImportedModule(JSGlobalOb
     JSValue moduleNameValue = identifierToJSValue(vm, moduleName);
     JSValue entry = m_dependenciesMap->JSMap::get(globalObject, moduleNameValue);
     RETURN_IF_EXCEPTION(scope, nullptr);
-    RELEASE_AND_RETURN(scope, entry.getAs<AbstractModuleRecord*>(globalObject, Identifier::fromString(vm, "module"_s)));
+
+    RELEASE_ASSERT(entry != jsUndefined(), vm.traps().maybeNeedHandling(), vm.exceptionForInspection(), JSValue::encode(entry));
+
+    // if (moduleName == "../../common/util/colors.js"_s || moduleName == "../common/util/types.js"_s)
+    //     dataLogLn(RawPointer(&Thread::current()), " ################# hostResolveImportedModule start ", moduleName);
+
+    Identifier moduleID = Identifier::fromString(vm, "module"_s);
+    AbstractModuleRecord* result = entry.getAs<AbstractModuleRecord*>(globalObject, moduleID);
+
+#if CPU(ADDRESS64)
+    if (UNLIKELY(!vm.exceptionForInspection() && result == bitwise_cast<AbstractModuleRecord*>(encodedJSUndefined()))) {
+        JSValue state = entry.get(globalObject, Identifier::fromString(vm, "state"_s));
+
+        dataLogLn(MonotonicTime::now(), " ", RawPointer(&Thread::current()), " ################# BAD! hostResolveImportedModule found undefined pointer ------------- ", moduleName, " with state ", state.asInt32());
+
+        bool idEqualsModule = moduleID == "module"_s;
+
+
+        auto hasSlot = [&] (Identifier id) {
+            PropertySlot slot(entry, PropertySlot::InternalMethodType::Get);
+            return entry.getPropertySlot(globalObject, id, slot);
+        };
+
+        uint64_t fieldBitVector = hasSlot(Identifier::fromString(vm, "key"_s)) << 11 |
+            hasSlot(Identifier::fromString(vm, "state"_s)) << 10 |
+            hasSlot(Identifier::fromString(vm, "fetch"_s)) << 9 |
+            hasSlot(Identifier::fromString(vm, "instantiate"_s)) << 8 |
+            hasSlot(Identifier::fromString(vm, "satisfy"_s)) << 7 |
+            hasSlot(Identifier::fromString(vm, "dependencies"_s)) << 6 |
+            hasSlot(moduleID) << 5 |
+            hasSlot(Identifier::fromString(vm, "linkError"_s)) << 4 |
+            hasSlot(Identifier::fromString(vm, "linkSucceeded"_s)) << 3 |
+            hasSlot(Identifier::fromString(vm, "evaluated"_s)) << 2 |
+            hasSlot(Identifier::fromString(vm, "then"_s)) << 1 |
+            hasSlot(Identifier::fromString(vm, "isAsync"_s));
+
+        RELEASE_ASSERT(vm.exceptionForInspection() || result != bitwise_cast<AbstractModuleRecord*>(encodedJSUndefined()),
+            vm.traps().maybeNeedHandling(), // 0x0000000000000000
+            vm.exceptionForInspection(),    // 0x0000000000000000
+            JSValue::encode(entry),         // 0x0000000160faf900
+            idEqualsModule,                 // 0x0000000000000001
+            fieldBitVector,                 // 0x0000000000000000
+            result);                        // 0x000000000000000a
+    }
+#endif
+
+    // if (moduleName == "../../common/util/colors.js"_s || moduleName == "../common/util/types.js"_s)
+    //     dataLogLn(RawPointer(&Thread::current()), " ################# hostResolveImportedModule end ", moduleName);
+    RELEASE_AND_RETURN(scope, result);
 }
 
 auto AbstractModuleRecord::resolveImport(JSGlobalObject* globalObject, const Identifier& localName) -> Resolution

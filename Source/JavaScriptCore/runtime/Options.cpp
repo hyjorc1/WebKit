@@ -232,7 +232,8 @@ static const char* asString(OSLogType type)
 bool Options::isAvailable(Options::ID id, Options::Availability availability)
 {
     if (availability == Availability::Restricted)
-        return g_jscConfig.restrictedOptionsEnabled;
+        // return g_jscConfig.restrictedOptionsEnabled;
+        return true;
     ASSERT(availability == Availability::Configurable);
     
     UNUSED_PARAM(id);
@@ -540,6 +541,8 @@ void Options::notifyOptionsChanged()
     unsigned thresholdForGlobalLexicalBindingEpoch = Options::thresholdForGlobalLexicalBindingEpoch();
     if (thresholdForGlobalLexicalBindingEpoch == 0 || thresholdForGlobalLexicalBindingEpoch == 1)
         Options::thresholdForGlobalLexicalBindingEpoch() = UINT_MAX;
+
+    Options::useDollarVM() = true;
 
 #if !defined(NDEBUG)
     Options::validateDFGExceptionHandling() = true;

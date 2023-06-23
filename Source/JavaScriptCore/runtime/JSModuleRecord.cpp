@@ -33,6 +33,7 @@
 #include "JSModuleLoader.h"
 #include "JSModuleNamespaceObject.h"
 #include "UnlinkedModuleProgramCodeBlock.h"
+#include "wtf/DataLog.h"
 
 namespace JSC {
 
@@ -102,6 +103,9 @@ Synchronousness JSModuleRecord::link(JSGlobalObject* globalObject, JSValue scrip
 
 void JSModuleRecord::instantiateDeclarations(JSGlobalObject* globalObject, ModuleProgramExecutable* moduleProgramExecutable, JSValue scriptFetcher)
 {
+    if (this->m_moduleKey == "https://gpuweb.github.io/cts/out/common/framework/params_builder.js"_s)
+        dataLogLn("found");
+
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 

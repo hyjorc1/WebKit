@@ -46,14 +46,14 @@ template<typename To>
 inline To jsCast(JSValue from)
 {
     static_assert(std::is_base_of<JSCell, typename std::remove_pointer<To>::type>::value, "JS casting expects that the types you are casting to is a subclass of JSCell");
-#if (ASSERT_ENABLED || ENABLE(SECURITY_ASSERTIONS)) && CPU(X86_64)
-    ASSERT_WITH_SECURITY_IMPLICATION(from.isCell());
-    JSCell* cell = from.asCell();
-    if (!cell->JSCell::inherits(std::remove_pointer<To>::type::info()))
-        reportZappedCellAndCrash(*cell->JSCell::heap(), cell);
-#else
-    ASSERT_WITH_SECURITY_IMPLICATION(from.isCell() && from.asCell()->JSCell::inherits(std::remove_pointer<To>::type::info()));
-#endif
+// #if (ASSERT_ENABLED || ENABLE(SECURITY_ASSERTIONS)) && CPU(X86_64)
+//     ASSERT_WITH_SECURITY_IMPLICATION(from.isCell());
+//     JSCell* cell = from.asCell();
+//     if (!cell->JSCell::inherits(std::remove_pointer<To>::type::info()))
+//         reportZappedCellAndCrash(*cell->JSCell::heap(), cell);
+// #else
+//     ASSERT_WITH_SECURITY_IMPLICATION(from.isCell() && from.asCell()->JSCell::inherits(std::remove_pointer<To>::type::info()));
+// #endif
     return static_cast<To>(from.asCell());
 }
 

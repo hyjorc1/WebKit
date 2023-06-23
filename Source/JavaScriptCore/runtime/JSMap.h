@@ -56,6 +56,8 @@ public:
 
     ALWAYS_INLINE void set(JSGlobalObject*, JSValue key, JSValue);
 
+    // ALWAYS_INLINE JSValue size(JSGlobalObject* gb);
+
     static bool isSetFastAndNonObservable(Structure*);
     bool isIteratorProtocolFastAndNonObservable();
     JSMap* clone(JSGlobalObject*, VM&, Structure*);
