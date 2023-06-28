@@ -65,6 +65,10 @@ typedef enum pas_segregated_heap_medium_size_directory_search_mode pas_segregate
 
 enum pas_yijia_debug_mode {
     pas_yijia_debug_mode_on,
+    pas_yijia_debug_mode_on_1,
+    pas_yijia_debug_mode_on_2,
+    pas_yijia_debug_mode_on_3,
+    pas_yijia_debug_mode_on_4,
     pas_yijia_debug_mode_off,
 };
 
