@@ -354,7 +354,8 @@ medium_directory_tuple_for_index_impl(
     pas_segregated_heap_medium_directory_tuple* medium_directories,
     unsigned num_medium_directories,
     size_t index,
-    pas_segregated_heap_medium_size_directory_search_mode search_mode)
+    pas_segregated_heap_medium_size_directory_search_mode search_mode,
+    pas_yijia_debug_mode debug_mode)
 {
     static const bool verbose = false;
     
@@ -389,19 +390,14 @@ medium_directory_tuple_for_index_impl(
                     begin, end, middle, directory->begin_index, directory->end_index);
         }
 
-        if (search_mode == pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug)
-            pas_log("%p: In medium_directory_tuple_for_index_impl 0, begin = %u, end = %u, middle = %u, begin_index = %u, end_index = %u\n",
-                    (void*)pthread_self(), begin, end, middle, directory->begin_index, directory->end_index);
-
         begin_index = directory->begin_index;
 
         /* This is necessary to guard against the medium tuple array being decommitted at the wrong time,
            or the tuple straddling page boundary, leading to the begin index being zero and the end_index
            having its original value. */
         if (!begin_index) {
-            if (search_mode == pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug)
-                pas_log("%p: In medium_directory_tuple_for_index_impl returns null 1, begin = %u, end = %u, best = %p, middle = %u, begin_index = %u, end_index = %u, rare_data = %p, medium_directories = %p, num_medium_directories = %u, index = %lu\n",
-                    (void*)pthread_self(), begin, end, best, middle, directory->begin_index, directory->end_index, rare_data, medium_directories, num_medium_directories, index);
+            PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), false,
+                begin, end, best, middle, directory->begin_index, directory->end_index);
             result.tuple = NULL;
             return result;
         }
@@ -422,19 +418,15 @@ medium_directory_tuple_for_index_impl(
         }
 
         result.tuple = directory;
-
-        if (result.tuple == NULL && search_mode == pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug)
-            pas_log("%p: In medium_directory_tuple_for_index_impl returns null 2, begin = %u, end = %u, best = %p, middle = %u, begin_index = %u, end_index = %u, rare_data = %p, medium_directories = %p, num_medium_directories = %u, index = %lu\n",
-                    (void*)pthread_self(), begin, end, best, middle, directory->begin_index, directory->end_index, rare_data, medium_directories, num_medium_directories, index);
+        PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), result.tuple,
+                begin, end, best, middle, directory->begin_index, directory->end_index);
         return result;
     }
 
     switch (search_mode) {
     case pas_segregated_heap_medium_size_directory_search_within_size_class_progression:
-    case pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug:
-        if (search_mode == pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug)
-            pas_log("%p: In medium_directory_tuple_for_index_impl returns null 3, begin = %u, end = %u, best = %p, rare_data = %p, medium_directories = %p, num_medium_directories = %u, index = %lu\n",
-                    (void*)pthread_self(), begin, end, best, rare_data, medium_directories, num_medium_directories, index);
+        PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), false,
+                begin, end, best, medium_directories, num_medium_directories, index);
         result.tuple = NULL;
         return result;
         
@@ -443,9 +435,8 @@ medium_directory_tuple_for_index_impl(
         return result;
     }
 
-    if (search_mode == pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug)
-            pas_log("%p: In medium_directory_tuple_for_index_impl returns null 4, begin = %u, end = %u, best = %p, rare_data = %p, medium_directories = %p, num_medium_directories = %u, index = %lu\n",
-                    (void*)pthread_self(), begin, end, best, rare_data, medium_directories, num_medium_directories, index);
+    PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), false,
+                begin, end, best, medium_directories, num_medium_directories, index);
     PAS_ASSERT(!"Should not be reached");
     result.tuple = NULL;
     return result;
@@ -456,7 +447,8 @@ medium_directory_tuple_for_index_with_lock(
     pas_segregated_heap* heap,
     size_t index,
     pas_segregated_heap_medium_size_directory_search_mode search_mode,
-    pas_lock_hold_mode heap_lock_hold_mode)
+    pas_lock_hold_mode heap_lock_hold_mode,
+    pas_yijia_debug_mode debug_mode)
 {
     pas_segregated_heap_medium_directory_tuple* result;
     pas_segregated_heap_rare_data* rare_data;
@@ -473,7 +465,8 @@ medium_directory_tuple_for_index_with_lock(
         medium_directories,
         rare_data->num_medium_directories,
         index,
-        search_mode).tuple;
+        search_mode,
+        debug_mode).tuple;
     
     pas_heap_lock_unlock_conditionally(heap_lock_hold_mode);
     
@@ -485,7 +478,8 @@ pas_segregated_heap_medium_directory_tuple_for_index(
     pas_segregated_heap* heap,
     size_t index,
     pas_segregated_heap_medium_size_directory_search_mode search_mode,
-    pas_lock_hold_mode heap_lock_hold_mode)
+    pas_lock_hold_mode heap_lock_hold_mode,
+    pas_yijia_debug_mode debug_mode)
 {
     static const bool verbose = false;
     
@@ -497,25 +491,23 @@ pas_segregated_heap_medium_directory_tuple_for_index(
     
     rare_data = pas_segregated_heap_rare_data_ptr_load(&heap->rare_data);
     if (!rare_data) {   // <-- rare_data is NULL? possible
-        pas_log("%p: In pas_segregated_heap_medium_directory_tuple_for_index 0, &heap->rare_data = %p, rare_data = %p\n", (void*)pthread_self(), &heap->rare_data, (void*)rare_data);
+        PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), rare_data,
+            (void*)pthread_self(), &heap->rare_data, (void*)rare_data);
         return NULL;
     }
     
     if (heap_lock_hold_mode == pas_lock_is_held) { // <-- very likely this path returns NULL
-        pas_segregated_heap_medium_directory_tuple* result1 = medium_directory_tuple_for_index_with_lock(heap, index, search_mode, pas_lock_is_held);
-        if (!result1)
-            pas_log("%p: In pas_segregated_heap_medium_directory_tuple_for_index 1, result1 = %p\n", (void*)pthread_self(), (void*)result1);
+        pas_segregated_heap_medium_directory_tuple* result1 = medium_directory_tuple_for_index_with_lock(heap, index, search_mode, pas_lock_is_held, debug_mode);
+        PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), result1,
+            (void*)pthread_self(), (void*)result1);
         return result1;
     }
     
     saved_count = rare_data->mutation_count;
     if (PAS_UNLIKELY(pas_mutation_count_is_mutating(saved_count))) {
-        pas_segregated_heap_medium_directory_tuple* result2 = medium_directory_tuple_for_index_with_lock(heap, index, search_mode, pas_lock_is_not_held);
-        if (!result2)
-            pas_log("%p: In pas_segregated_heap_medium_directory_tuple_for_index 2, saved_count = %lu, result2 = %p\n",
-                (void*)pthread_self(),
-                saved_count.count,
-                (void*)result2);
+        pas_segregated_heap_medium_directory_tuple* result2 = medium_directory_tuple_for_index_with_lock(heap, index, search_mode, pas_lock_is_not_held, debug_mode);
+        PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), result2,
+            (void*)pthread_self(), saved_count.count, (void*)result2);
         return result2;
     }
     
@@ -525,23 +517,19 @@ pas_segregated_heap_medium_directory_tuple_for_index(
         &rare_data[pas_depend(num_medium_directories)].medium_directories);
     
     result = medium_directory_tuple_for_index_impl(
-        rare_data, medium_directories, num_medium_directories, index, search_mode);
+        rare_data, medium_directories, num_medium_directories, index, search_mode, debug_mode);
     
     if (pas_mutation_count_matches_with_dependency(&rare_data->mutation_count, saved_count, result.dependency)) {
         if (verbose && !result.tuple)
             pas_log("did not find tuple\n");
-        if (!result.tuple)
-            pas_log("%p: In pas_segregated_heap_medium_directory_tuple_for_index 3, num_medium_directories = %u, medium_directories = %p, result.tuple = %p\n",
-                (void*)pthread_self(),
-                num_medium_directories,
-                medium_directories,
-                (void*)result.tuple);
+        PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), result.tuple,
+            (void*)pthread_self(), num_medium_directories, (void*)medium_directories, (void*)result.tuple);
         return result.tuple;
     }
     
-    pas_segregated_heap_medium_directory_tuple* result3 = medium_directory_tuple_for_index_with_lock(heap, index, search_mode, pas_lock_is_not_held);
-    if (!result3)
-        pas_log("%p: In pas_segregated_heap_medium_directory_tuple_for_index 4, result3 = %p\n", (void*)pthread_self(), (void*)result3);
+    pas_segregated_heap_medium_directory_tuple* result3 = medium_directory_tuple_for_index_with_lock(heap, index, search_mode, pas_lock_is_not_held, debug_mode);
+    PAS_ASSERT_IF((debug_mode == pas_yijia_debug_mode_on), result3,
+        (void*)pthread_self(), (void*)result3);
     return result3;
 }
 
@@ -556,7 +544,7 @@ unsigned pas_segregated_heap_medium_allocator_index_for_index(
     pas_segregated_heap_medium_directory_tuple* medium_directory;
     
     medium_directory = pas_segregated_heap_medium_directory_tuple_for_index(
-        heap, index, search_mode, heap_lock_hold_mode);
+        heap, index, search_mode, heap_lock_hold_mode, pas_yijia_debug_mode_off);
     
     if (medium_directory) {
         unsigned result;
@@ -578,7 +566,7 @@ pas_segregated_size_directory* pas_segregated_heap_medium_size_directory_for_ind
     pas_segregated_heap_medium_directory_tuple* medium_directory;
     
     medium_directory = pas_segregated_heap_medium_directory_tuple_for_index(
-        heap, index, search_mode, heap_lock_hold_mode);
+        heap, index, search_mode, heap_lock_hold_mode, pas_yijia_debug_mode_off);
     
     if (medium_directory)
         return pas_compact_atomic_segregated_size_directory_ptr_load(&medium_directory->directory);
@@ -938,13 +926,9 @@ pas_segregated_heap_ensure_allocator_index(
         medium_directory =
             pas_segregated_heap_medium_directory_tuple_for_index( // <-- medium_directory comes from here
                 heap, index,
-                pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug,
-                pas_lock_is_held);
-        
-        if (!medium_directory) {
-            pas_log("%p: In pas_segregated_heap_ensure_allocator_index, medium_directory = %p\n", (void*)pthread_self(), (void*)medium_directory);
-        }
-
+                pas_segregated_heap_medium_size_directory_search_within_size_class_progression,
+                pas_lock_is_held,
+                pas_yijia_debug_mode_on);
         PAS_ASSERT(medium_directory, medium_directory); // <-- crash here
         PAS_ASSERT(
             pas_compact_atomic_segregated_size_directory_ptr_load(&medium_directory->directory)
@@ -1614,7 +1598,8 @@ pas_segregated_heap_ensure_size_directory_for_size(
         medium_tuple = pas_segregated_heap_medium_directory_tuple_for_index(
             heap, index,
             pas_segregated_heap_medium_size_directory_search_within_size_class_progression,
-            pas_lock_is_held);
+            pas_lock_is_held,
+            pas_yijia_debug_mode_off);
         if (medium_tuple) {
             pas_segregated_heap_rare_data* rare_data;
 
@@ -1735,7 +1720,8 @@ pas_segregated_heap_ensure_size_directory_for_size(
         medium_tuple = pas_segregated_heap_medium_directory_tuple_for_index(
             heap, index,
             pas_segregated_heap_medium_size_directory_search_least_greater_equal,
-            pas_lock_is_held);
+            pas_lock_is_held,
+            pas_yijia_debug_mode_off);
         if (medium_tuple) {
             pas_segregated_size_directory* directory;
             directory = pas_compact_atomic_segregated_size_directory_ptr_load(
@@ -2076,7 +2062,8 @@ pas_segregated_heap_ensure_size_directory_for_size(
             next_tuple = pas_segregated_heap_medium_directory_tuple_for_index(
                 heap, index,
                 pas_segregated_heap_medium_size_directory_search_least_greater_equal,
-                pas_lock_is_held);
+                pas_lock_is_held,
+                pas_yijia_debug_mode_off);
         
             if (next_tuple &&
                 pas_compact_atomic_segregated_size_directory_ptr_load(

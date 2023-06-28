@@ -58,12 +58,17 @@ enum pas_segregated_heap_medium_size_directory_search_mode {
     /* Given a requested index, the returned directory has to be index <= end_index and it has to be the
        directory with minimum end_index that meets that property. So, it's the smallest-indexed directory
        whose advertised index is greater-than-or-equal to the index we are asking for. */
-    pas_segregated_heap_medium_size_directory_search_least_greater_equal,
-
-    pas_segregated_heap_medium_size_directory_search_within_size_class_progression_debug
+    pas_segregated_heap_medium_size_directory_search_least_greater_equal
 };
 
 typedef enum pas_segregated_heap_medium_size_directory_search_mode pas_segregated_heap_medium_size_directory_search_mode;
+
+enum pas_yijia_debug_mode {
+    pas_yijia_debug_mode_on,
+    pas_yijia_debug_mode_off,
+};
+
+typedef enum pas_yijia_debug_mode pas_yijia_debug_mode;
 
 struct pas_heap;
 struct pas_segregated_size_directory;
@@ -211,7 +216,8 @@ pas_segregated_heap_medium_directory_tuple_for_index(
     pas_segregated_heap* heap,
     size_t index,
     pas_segregated_heap_medium_size_directory_search_mode search_mode,
-    pas_lock_hold_mode heap_lock_hold_mode);
+    pas_lock_hold_mode heap_lock_hold_mode,
+    pas_yijia_debug_mode);
 
 PAS_API unsigned pas_segregated_heap_medium_allocator_index_for_index(
     pas_segregated_heap* heap,
