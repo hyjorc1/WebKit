@@ -64,8 +64,9 @@ static_assert(sizeof(bool) == 1, "LLInt and JIT assume sizeof(bool) is always 1 
 
 enum class JSCProfileTag { };
 
-void initialize()
+void initialize() // <--
 {
+    dataLogLnIf("<YIJIA> ", Thread::current(), " in JSC::initialize");
     static std::once_flag onceFlag;
 
     std::call_once(onceFlag, [] {
@@ -127,12 +128,12 @@ void initialize()
 
         if (Wasm::isSupported() || !Options::usePollingTraps()) {
             // JSLock::lock() can call registerThreadForMachExceptionHandling() which crashes if this has not been called first.
-            initializeSignalHandling();
+            initializeSignalHandling();         // <-- here we starts the thread for signal handling
 
             if (!Options::usePollingTraps())
                 VMTraps::initializeSignals();
             if (Wasm::isSupported())
-                Wasm::prepareSignalingMemory();
+                Wasm::prepareSignalingMemory(); // <--
         } else
             disableSignalHandling();
 

@@ -69,6 +69,8 @@
 #include "SuperSampler.h"
 #include "VMInlines.h"
 #include "VMTrapsInlines.h"
+#include "wtf/RawPointer.h"
+#include "wtf/Threading.h"
 #include <wtf/NeverDestroyed.h>
 #include <wtf/StringPrintStream.h>
 
@@ -2656,6 +2658,24 @@ extern "C" void llint_dump_value(EncodedJSValue value)
 extern "C" NO_RETURN_DUE_TO_CRASH void llint_crash()
 {
     CRASH();
+}
+
+extern "C" void yijia_probe(void* pointer, void* offset, void* memoryBase, void* boundsCheckingSize);
+extern "C" void yijia_probe(void* pointer, void* offset, void* memoryBase, void* boundsCheckingSize)
+{
+    dataLogLn(Thread::current(), "<Yijia> pointer=", RawPointer(pointer), " offset=", RawPointer(offset), " memoryBase=", RawPointer(memoryBase), " boundsCheckingSize=", RawPointer(boundsCheckingSize));
+}
+
+extern "C" void yijia_probe_1();
+extern "C" void yijia_probe_1()
+{
+    dataLogLn(Thread::current(), "<Yijia> before load ");
+}
+
+extern "C" void yijia_probe_2();
+extern "C" void yijia_probe_2()
+{
+    dataLogLn(Thread::current(), "<Yijia> after  load ");
 }
 
 } } // namespace JSC::LLInt

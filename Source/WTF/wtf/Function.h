@@ -50,7 +50,7 @@ public:
         : m_callable(WTFMove(callable)) { }
     CallableWrapper(const CallableWrapper&) = delete;
     CallableWrapper& operator=(const CallableWrapper&) = delete;
-    Out call(In... in) final { return m_callable(std::forward<In>(in)...); }
+    Out call(In... in) final { return m_callable(std::forward<In>(in)...); } // <--
 private:
     CallableType m_callable;
 };
@@ -79,7 +79,7 @@ public:
     Out operator()(In... in) const
     {
         ASSERT(m_callableWrapper);
-        return m_callableWrapper->call(std::forward<In>(in)...);
+        return m_callableWrapper->call(std::forward<In>(in)...); // <--
     }
 
     explicit operator bool() const { return !!m_callableWrapper; }

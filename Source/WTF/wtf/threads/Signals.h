@@ -122,7 +122,7 @@ struct SignalHandlers {
 // Thus it is your responsibility to discern if the signal fired was yours.
 // These functions are a one way street i.e. once installed, a signal handler cannot be uninstalled
 // and once commited they can't be turned off.
-WTF_EXPORT_PRIVATE void addSignalHandler(Signal, SignalHandler&&);
+WTF_EXPORT_PRIVATE void addSignalHandler(Signal, SignalHandler&&, bool dump = false);
 WTF_EXPORT_PRIVATE void activateSignalHandlersFor(Signal);
 
 

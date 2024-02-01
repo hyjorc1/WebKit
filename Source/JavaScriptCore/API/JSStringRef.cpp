@@ -30,6 +30,8 @@
 #include "InitializeThreading.h"
 #include "OpaqueJSString.h"
 #include <wtf/unicode/UTF8Conversion.h>
+#include <wtf/Threading.h>
+#include <wtf/DataLog.h>
 
 using namespace JSC;
 using namespace WTF::Unicode;

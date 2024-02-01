@@ -160,6 +160,7 @@ Identifier JSWebAssemblyInstance::createPrivateModuleKey()
 
 JSWebAssemblyInstance* JSWebAssemblyInstance::tryCreate(VM& vm, JSGlobalObject* globalObject, const Identifier& moduleKey, JSWebAssemblyModule* jsModule, JSObject* importObject, Structure* instanceStructure, Ref<Wasm::Module>&& module, Wasm::CreationMode creationMode)
 {
+    dataLogLn("<YIJIA> ", Thread::current(), " JSWebAssemblyInstance::tryCreate 1");
     auto throwScope = DECLARE_THROW_SCOPE(vm);
 
     const Wasm::ModuleInformation& moduleInformation = jsModule->moduleInformation();
@@ -207,8 +208,10 @@ JSWebAssemblyInstance* JSWebAssemblyInstance::tryCreate(VM& vm, JSGlobalObject* 
         ASSERT(moduleRecord->importEntries().size() == moduleInformation.imports.size());
     }
 
+    dataLogLn("<YIJIA> ", Thread::current(), " JSWebAssemblyInstance::tryCreate 2");
     bool hasMemoryImport = moduleInformation.memory.isImport();
     if (moduleInformation.memory && !hasMemoryImport) {
+        dataLogLn("<YIJIA> ", Thread::current(), " JSWebAssemblyInstance::tryCreate 3");
         // We create a memory when it's a memory definition.
         auto* jsMemory = JSWebAssemblyMemory::tryCreate(globalObject, vm, globalObject->webAssemblyMemoryStructure());
         RETURN_IF_EXCEPTION(throwScope, nullptr);
@@ -216,6 +219,7 @@ JSWebAssemblyInstance* JSWebAssemblyInstance::tryCreate(VM& vm, JSGlobalObject* 
         RefPtr<Wasm::Memory> memory = Wasm::Memory::tryCreate(vm, moduleInformation.memory.initial(), moduleInformation.memory.maximum(), moduleInformation.memory.isShared() ? MemorySharingMode::Shared: MemorySharingMode::Default,
             [&vm, jsMemory](Wasm::Memory::GrowSuccess, PageCount oldPageCount, PageCount newPageCount) { jsMemory->growSuccessCallback(vm, oldPageCount, newPageCount); }
         );
+        dataLogLn("<YIJIA> ", Thread::current(), " JSWebAssemblyInstance::tryCreate 4");
         if (!memory)
             return exception(createOutOfMemoryError(globalObject));
 

@@ -144,7 +144,7 @@ void* OSAllocator::tryReserveUncommitted(size_t bytes, Usage usage, bool writabl
     return result;
 }
 
-void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool jitCageEnabled, bool includesGuardPages)
+void* OSAllocator::reserveUncommitted(size_t bytes, Usage usage, bool writable, bool executable, bool jitCageEnabled, bool includesGuardPages) // <--
 {
     void* result = tryReserveUncommitted(bytes, usage, writable, executable, jitCageEnabled, includesGuardPages);
     RELEASE_ASSERT(result);

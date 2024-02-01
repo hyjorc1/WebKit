@@ -4260,6 +4260,7 @@ int jscmain(int argc, char** argv)
             Options::dumpGeneratedBytecodes() = true;
     }
 
+    dataLogLn("<YIJIA> ", Thread::current(), " in jsc.cpp JSC::initialize");
     JSC::initialize();
 #if ENABLE(JIT_OPERATION_VALIDATION)
     JSC::JITOperationList::populatePointersInEmbedder(&startOfJITOperationsInShell, &endOfJITOperationsInShell);
@@ -4349,5 +4350,6 @@ int jscmain(int argc, char** argv)
         LinkBuffer::dumpProfileStatistics();
 #endif
 
+    dataLogLn("<YIJIA> ", Thread::current(), " in jsmain return result");
     return result;
 }

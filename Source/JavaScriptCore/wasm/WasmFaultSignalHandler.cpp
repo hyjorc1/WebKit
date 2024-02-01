@@ -25,6 +25,9 @@
 
 #include "config.h"
 #include "WasmFaultSignalHandler.h"
+#include "bmalloc/GigacageConfig.h"
+#include "wtf/DataLog.h"
+#include "wtf/RawPointer.h"
 
 #if ENABLE(WEBASSEMBLY)
 
@@ -46,13 +49,18 @@ namespace JSC { namespace Wasm {
 
 namespace {
 namespace WasmFaultSignalHandlerInternal {
-static constexpr bool verbose = false;
+static constexpr bool verbose = true;
 }
 }
 
-static SignalAction trapHandler(Signal signal, SigInfo& sigInfo, PlatformRegisters& context)
+static SignalAction trapHandler(Signal signal, SigInfo& sigInfo, PlatformRegisters& context) // <-- here
 {
+
     RELEASE_ASSERT(signal == Signal::AccessFault);
+    // if (WasmFaultSignalHandlerInternal::verbose)
+    //     CRASH();
+    dataLogLn("<YIJIA> ", Thread::current(), " in trapHandler start");
+
 
     auto instructionPointer = MachineContext::instructionPointer(context);
     if (!instructionPointer)
@@ -68,11 +76,16 @@ static SignalAction trapHandler(Signal signal, SigInfo& sigInfo, PlatformRegiste
     // we might have crashed in code that is already holding one of the locks we want to aquire.
     assertIsNotTagged(faultingInstruction);
     if (isJITPC(faultingInstruction) || LLInt::isWasmLLIntPC(faultingInstruction)) {
+
+        dataLogLn("<YIJIA> ", Thread::current(), " in trapHandler under if isJITPC(faultingInstruction) || LLInt::isWasmLLIntPC(faultingInstruction) ");
+
         bool faultedInActiveGrowableMemory = false;
         {
             void* faultingAddress = sigInfo.faultingAddress;
             dataLogLnIf(WasmFaultSignalHandlerInternal::verbose, "checking faulting address: ", RawPointer(faultingAddress), " is in an active fast memory");
             faultedInActiveGrowableMemory = Wasm::Memory::addressIsInGrowableOrFastMemory(faultingAddress);
+
+            dataLogLn("<YIJIA> ", Thread::current(), " in trapHandler faultedInActiveGrowableMemory=", faultedInActiveGrowableMemory);
         }
         if (faultedInActiveGrowableMemory) {
             dataLogLnIf(WasmFaultSignalHandlerInternal::verbose, "found active fast memory for faulting address");
@@ -96,6 +109,7 @@ static SignalAction trapHandler(Signal signal, SigInfo& sigInfo, PlatformRegiste
             };
 
             if (didFaultInWasm(faultingInstruction)) {
+                dataLogLn("<YIJIA> ", Thread::current(), " in trapHandler setInstructionPointer");
                 MachineContext::setInstructionPointer(context, LLInt::getCodePtr<CFunctionPtrTag>(wasm_throw_from_fault_handler_trampoline_reg_instance));
                 return SignalAction::Handled;
             }
@@ -118,8 +132,12 @@ void activateSignalingMemory()
     });
 }
 
-void prepareSignalingMemory()
+// bool doLoop = true;
+
+void prepareSignalingMemory() // <--
 {
+    // while (doLoop) {}
+
     static std::once_flag once;
     std::call_once(once, [] {
         if (!Wasm::isSupported())
@@ -128,9 +146,12 @@ void prepareSignalingMemory()
         if (!Options::useWasmFaultSignalHandler())
             return;
 
-        addSignalHandler(Signal::AccessFault, [] (Signal signal, SigInfo& sigInfo, PlatformRegisters& ucontext) {
+        addSignalHandler(Signal::AccessFault, [](Signal signal, SigInfo& sigInfo, PlatformRegisters& ucontext) { // <--
+            dataLogLn("<YIJIA> ", Thread::current(), " call trapHandler");
             return trapHandler(signal, sigInfo, ucontext);
-        });
+        }, true);
+
+        dataLogLn("<YIJIA> ", Thread::current(), " in prepareSignalingMemory added SignalHandler g_wtfConfig=", g_wtfConfig.isPermanentlyFrozen);
     });
 }
     

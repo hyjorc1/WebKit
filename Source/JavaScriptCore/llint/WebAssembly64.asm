@@ -65,15 +65,35 @@ macro wasmLoadOp(name, struct, size, fn)
     wasmOp(name, struct, macro(ctx)
         mloadi(ctx, m_pointer, t0)
         wgetu(ctx, m_offset, t1)
+        # break
+        probe(
+            macro()
+                move t0, a0
+                move t1, a1
+                move memoryBase, a2
+                move boundsCheckingSize, a3
+                call _yijia_probe
+            end
+        )
         emitCheckAndPreparePointer(ctx, t0, t1, size)
+        probe(
+            macro()
+                call _yijia_probe_1
+            end
+        )
         fn([t0, t1], t2)
+        probe(
+            macro()
+                call _yijia_probe_2
+            end
+        )
         returnq(ctx, t2)
     end)
 end
 
 wasmLoadOp(load8_u, WasmLoad8U, 1, macro(mem, dst) loadb mem, dst end)
 wasmLoadOp(load16_u, WasmLoad16U, 2, macro(mem, dst) loadh mem, dst end)
-wasmLoadOp(load32_u, WasmLoad32U, 4, macro(mem, dst) loadi mem, dst end)
+wasmLoadOp(load32_u, WasmLoad32U, 4, macro(mem, dst) loadi mem, dst end) // <--
 wasmLoadOp(load64_u, WasmLoad64U, 8, macro(mem, dst) loadq mem, dst end)
 
 wasmLoadOp(i32_load8_s, WasmI32Load8S, 1, macro(mem, dst) loadbsi mem, dst end)

@@ -87,7 +87,7 @@ int main(int argc, char** argv) WTF_IGNORES_THREAD_SAFETY_ANALYSIS
             }
         }
     }
-    
+
     WTF::initializeMainThread();
     JSC::initialize();
 

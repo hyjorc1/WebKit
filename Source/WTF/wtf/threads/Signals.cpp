@@ -99,7 +99,7 @@ inline void SignalHandlers::forEachHandler(Signal signal, const Func& func) cons
     while (handlerIndex--) {
         auto* memory = const_cast<SignalHandlerMemory*>(&handlers[signalIndex][handlerIndex]);
         const SignalHandler& handler = *bitwise_cast<SignalHandler*>(memory);
-        func(handler);
+        func(handler); // <--
     }
 }
 
@@ -118,7 +118,8 @@ void initMachExceptionHandlerThread(bool enable)
         RELEASE_ASSERT(g_wtfConfig.signalHandlers.initState == SignalHandlers::InitState::Uninitialized);
         g_wtfConfig.signalHandlers.initState = SignalHandlers::InitState::InitializedHandlerThread;
 
-        if (!enable || !g_wtfConfig.signalHandlers.useMach)
+        bool useMach = g_wtfConfig.signalHandlers.useMach;
+        if (!enable || !useMach)
             return;
 
         Config::AssertNotFrozenScope assertScope;
@@ -141,9 +142,11 @@ void initMachExceptionHandlerThread(bool enable)
             DISPATCH_SOURCE_TYPE_MACH_RECV, handlers.exceptionPort, 0, DISPATCH_TARGET_QUEUE_DEFAULT);
         RELEASE_ASSERT(source);
 
+        dataLogLn("<YIJIA> ", Thread::current(), " initMachExceptionHandlerThread");
         dispatch_source_set_event_handler(source, ^{
             UNUSED_PARAM(source); // Capture a pointer to source in user space to silence the leaks tool.
 
+            dataLogLn("<YIJIA> ", Thread::current(), " initMachExceptionHandlerThread handler before mach_msg_server_once "); // <-- this handler was not triggered
             kern_return_t kr = mach_msg_server_once(
                 mach_exc_server, maxMessageSize, handlers.exceptionPort, MACH_MSG_TIMEOUT_NONE);
             RELEASE_ASSERT(kr == KERN_SUCCESS);
@@ -279,7 +282,7 @@ kern_return_t catch_mach_exception_raise_state(
 
     bool didHandle = false;
     handlers.forEachHandler(signal, [&] (const SignalHandler& handler) {
-        SignalAction handlerResult = handler(signal, info, registers);
+        SignalAction handlerResult = handler(signal, info, registers); // <--
         didHandle |= handlerResult == SignalAction::Handled;
     });
 
@@ -307,7 +310,8 @@ inline void setExceptionPorts(const AbstractLocker& threadGroupLocker, Thread& t
 {
     UNUSED_PARAM(threadGroupLocker);
     SignalHandlers& handlers = g_wtfConfig.signalHandlers;
-    kern_return_t result = thread_set_exception_ports(thread.machThread(), handlers.addedExceptions &activeExceptions, handlers.exceptionPort, EXCEPTION_STATE | MACH_EXCEPTION_CODES, MACHINE_THREAD_STATE);
+    kern_return_t result = thread_set_exception_ports(thread.machThread(), handlers.addedExceptions &activeExceptions, handlers.exceptionPort, EXCEPTION_STATE | MACH_EXCEPTION_CODES, MACHINE_THREAD_STATE); // TODO
+    dataLogLn("<YIJIA> ", Thread::current(), " in setExceptionPorts for thread=", thread, " with exception mask=", handlers.addedExceptions & activeExceptions);
     if (result != KERN_SUCCESS) {
         dataLogLn("thread set port failed due to ", mach_error_string(result));
         CRASH();
@@ -375,8 +379,9 @@ inline size_t offsetForSystemSignal(int sig)
 
 static void jscSignalHandler(int, siginfo_t*, void*);
 
-void addSignalHandler(Signal signal, SignalHandler&& handler)
+void addSignalHandler(Signal signal, SignalHandler&& handler, bool dump) // signal = AccessFault = 4
 {
+    dataLogLnIf(dump, "<YIJIA> ", Thread::current(), " in addSignalHandler with handler=", RawPointer(&handler), " for signal=", (size_t)signal);
     Config::AssertNotFrozenScope assertScope;
     SignalHandlers& handlers = g_wtfConfig.signalHandlers;
     ASSERT(signal < Signal::Unknown);
@@ -387,8 +392,10 @@ void addSignalHandler(Signal signal, SignalHandler&& handler)
 
     static std::once_flag initializeOnceFlags[static_cast<size_t>(Signal::NumberOfSignals)];
     std::call_once(initializeOnceFlags[static_cast<size_t>(signal)], [&] {
+        dataLogLn("<YIJIA> ", Thread::current(), " in addSignalHandler 1 ", RawPointer(&handler), " for signal=", static_cast<size_t>(signal));
         Config::AssertNotFrozenScope assertScope;
         if (!handlers.useMach) {
+            dataLogLn("<YIJIA> ", Thread::current(), " in addSignalHandler 2 ", RawPointer(&handler), " for signal=", static_cast<size_t>(signal));
             struct sigaction action;
             action.sa_sigaction = jscSignalHandler;
             auto result = sigfillset(&action.sa_mask);
@@ -403,10 +410,12 @@ void addSignalHandler(Signal signal, SignalHandler&& handler)
             if (std::get<1>(systemSignals))
                 result |= sigaction(*std::get<1>(systemSignals), &action, &handlers.oldActions[offsetForSystemSignal(*std::get<1>(systemSignals))]);
             RELEASE_ASSERT(!result);
+            dataLogLn("<YIJIA> ", Thread::current(), " in addSignalHandler 3 ", RawPointer(&handler), " for signal=", static_cast<size_t>(signal));
         }
     });
 
-    handlers.add(signal, WTFMove(handler));
+    handlers.add(signal, WTFMove(handler)); // <--
+    dataLogLnIf(dump, "<YIJIA> ", Thread::current(), " in addSignalHandler added handler=", RawPointer(&handler));
 }
 
 void activateSignalHandlersFor(Signal signal)
@@ -420,6 +429,7 @@ void activateSignalHandlersFor(Signal signal)
 
     Locker locker { activeThreads().getLock() };
     if (handlers.useMach) {
+        dataLogLn("<YIJIA> ", Thread::current(), " in activateSignalHandlersFor for signal=", (size_t)signal);
         activeExceptions |= toMachMask(signal);
 
         for (auto& thread : activeThreads().threads(locker))

@@ -47,6 +47,7 @@ public:
 TEST(Signals, SignalsWorkOnExit)
 {
     static bool handlerRan = false;
+    // handleSignalsWithMach();
     initializeSignalHandling();
     addSignalHandler(Signal::Usr, [] (Signal signal, SigInfo&, PlatformRegisters&) -> SignalAction {
         RELEASE_ASSERT(signal == Signal::Usr);
@@ -54,26 +55,33 @@ TEST(Signals, SignalsWorkOnExit)
         dataLogLn("here");
         handlerRan = true;
         return SignalAction::Handled;
-    });
+    }, true);
     activateSignalHandlersFor(Signal::Usr);
 
     Atomic<bool> receiverShouldKeepRunning(true);
     Ref<Thread> receiverThread = (Thread::create("ThreadMessage receiver",
-        [&receiverShouldKeepRunning] () {
-            while (receiverShouldKeepRunning.load()) { }
+        [&receiverShouldKeepRunning]() {
+            dataLogLn("receiverThread function start...");
+            while (receiverShouldKeepRunning.load()) {
+                dataLogLn("receiverThread function in while loop...");
+            }
+            dataLogLn("receiverThread function end...");
     }));
 
     bool signalFired;
     {
         std::unique_lock<WordLock> locker(static_cast<ReflectedThread&>(receiverThread.get()).m_mutex);
+        signalFired = !pthread_kill(static_cast<ReflectedThread&>(receiverThread.get()).m_handle, SIGUSR2);
         receiverShouldKeepRunning.store(false);
         EXPECT_FALSE(static_cast<ReflectedThread&>(receiverThread.get()).hasExited());
-        sleep(1_s);
-        signalFired = !pthread_kill(static_cast<ReflectedThread&>(receiverThread.get()).m_handle, SIGUSR2);
+        sleep(2_s);
+        dataLogLn("receiverThread hasExited=", static_cast<ReflectedThread&>(receiverThread.get()).hasExited());
     }
+    // signalFired = receiverThread->signal(SIGUSR2);
 
     receiverThread->waitForCompletion();
     EXPECT_TRUE(handlerRan || !signalFired);
+    dataLogLn("End of SignalsWorkOnExit with handlerRan=", handlerRan, ", signalFired=", signalFired);
 }
 #else
 TEST(Signals, SignalsAccessFault)

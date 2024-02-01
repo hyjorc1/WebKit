@@ -49,7 +49,7 @@ static JSC_DECLARE_HOST_FUNCTION(callJSWebAssemblyInstance);
 
 using Wasm::Plan;
 
-JSC_DEFINE_HOST_FUNCTION(constructJSWebAssemblyInstance, (JSGlobalObject* globalObject, CallFrame* callFrame))
+JSC_DEFINE_HOST_FUNCTION(constructJSWebAssemblyInstance, (JSGlobalObject* globalObject, CallFrame* callFrame)) // <--
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
@@ -64,12 +64,11 @@ JSC_DEFINE_HOST_FUNCTION(constructJSWebAssemblyInstance, (JSGlobalObject* global
     JSObject* importObject = importArgument.getObject();
     if (!importArgument.isUndefined() && !importObject)
         return JSValue::encode(throwException(globalObject, scope, createTypeError(globalObject, "second argument to WebAssembly.Instance must be undefined or an Object"_s, defaultSourceAppender, runtimeTypeForValue(importArgument))));
-
     JSObject* newTarget = asObject(callFrame->newTarget());
     Structure* instanceStructure = JSC_GET_DERIVED_STRUCTURE(vm, webAssemblyInstanceStructure, newTarget, callFrame->jsCallee());
     RETURN_IF_EXCEPTION(scope, { });
 
-    JSWebAssemblyInstance* instance = JSWebAssemblyInstance::tryCreate(vm, globalObject, JSWebAssemblyInstance::createPrivateModuleKey(), module, importObject, instanceStructure, Ref<Wasm::Module>(module->module()), Wasm::CreationMode::FromJS);
+    JSWebAssemblyInstance* instance = JSWebAssemblyInstance::tryCreate(vm, globalObject, JSWebAssemblyInstance::createPrivateModuleKey(), module, importObject, instanceStructure, Ref<Wasm::Module>(module->module()), Wasm::CreationMode::FromJS); // <--
     RETURN_IF_EXCEPTION(scope, { });
 
     instance->initializeImports(globalObject, importObject, Wasm::CreationMode::FromJS);

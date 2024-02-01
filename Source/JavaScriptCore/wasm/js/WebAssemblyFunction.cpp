@@ -370,7 +370,7 @@ CodePtr<JSEntryPtrTag> WebAssemblyFunction::jsCallEntrypointSlow()
             // Capacity and basePointer will not be changed.
             if (mode == MemoryMode::BoundsChecking)
                 jit.move(CCallHelpers::TrustedImm64(instance()->instance().memory()->mappedCapacity()), GPRInfo::wasmBoundsCheckingSizeRegister);
-            jit.move(CCallHelpers::TrustedImmPtr(instance()->instance().memory()->basePointer()), GPRInfo::wasmBaseMemoryPointer);
+            jit.move(CCallHelpers::TrustedImmPtr(instance()->instance().memory()->basePointer()), GPRInfo::wasmBaseMemoryPointer); // <= 
         } else {
             GPRReg scratchOrBoundsCheckingSize = InvalidGPRReg;
             if (isARM64E()) {

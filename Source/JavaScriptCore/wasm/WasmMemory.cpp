@@ -57,7 +57,7 @@ WTF_MAKE_TZONE_ALLOCATED_IMPL(Memory);
 
 namespace {
 
-constexpr bool verbose = false;
+constexpr bool verbose = true;
 
 NEVER_INLINE NO_RETURN_DUE_TO_CRASH void webAssemblyCouldntGetFastMemory() { CRASH(); }
 
@@ -98,7 +98,7 @@ Memory::Memory(PageCount initial, PageCount maximum, MemorySharingMode sharingMo
 {
     ASSERT(!initial.bytes());
     ASSERT(mode() == MemoryMode::BoundsChecking);
-    dataLogLnIf(verbose, "Memory::Memory allocating ", *this);
+    dataLogLnIf(verbose, "1 Memory::Memory allocating ", *this);
     ASSERT(basePointer());
 }
 
@@ -106,7 +106,7 @@ Memory::Memory(Ref<BufferMemoryHandle>&& handle, WTF::Function<void(GrowSuccess,
     : m_handle(WTFMove(handle))
     , m_growSuccessCallback(WTFMove(growSuccessCallback))
 {
-    dataLogLnIf(verbose, "Memory::Memory allocating ", *this);
+    dataLogLnIf(verbose, "2 Memory::Memory allocating ", *this);
 }
 
 Memory::Memory(Ref<BufferMemoryHandle>&& handle, Ref<SharedArrayBufferContents>&& shared, WTF::Function<void(GrowSuccess, PageCount, PageCount)>&& growSuccessCallback)
@@ -114,7 +114,7 @@ Memory::Memory(Ref<BufferMemoryHandle>&& handle, Ref<SharedArrayBufferContents>&
     , m_shared(WTFMove(shared))
     , m_growSuccessCallback(WTFMove(growSuccessCallback))
 {
-    dataLogLnIf(verbose, "Memory::Memory allocating ", *this);
+    dataLogLnIf(verbose, "3 Memory::Memory allocating ", *this);
 }
 
 Ref<Memory> Memory::create()
@@ -141,12 +141,14 @@ Ref<Memory> Memory::createZeroSized(MemorySharingMode sharingMode, WTF::Function
 
 RefPtr<Memory> Memory::tryCreate(VM& vm, PageCount initial, PageCount maximum, MemorySharingMode sharingMode, WTF::Function<void(GrowSuccess, PageCount, PageCount)>&& growSuccessCallback)
 {
+    dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 1");
     ASSERT(initial);
     RELEASE_ASSERT(!maximum || maximum >= initial); // This should be guaranteed by our caller.
 
     const uint64_t initialBytes = initial.bytes();
     const uint64_t maximumBytes = maximum ? maximum.bytes() : 0;
 
+    dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 2");
     if (initialBytes > MAX_ARRAY_BUFFER_SIZE)
         return nullptr; // Client will throw OOMError.
 
@@ -155,19 +157,22 @@ RefPtr<Memory> Memory::tryCreate(VM& vm, PageCount initial, PageCount maximum, M
         RELEASE_ASSERT(!initialBytes);
         return createZeroSized(sharingMode, WTFMove(growSuccessCallback));
     }
-    
+
+    dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 3");
     bool done = tryAllocate(vm,
         [&] () -> BufferMemoryResult::Kind {
             return BufferMemoryManager::singleton().tryAllocatePhysicalBytes(initialBytes);
         });
     if (!done)
         return nullptr;
-        
+
+    dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 4");
     char* fastMemory = nullptr;
     if (Options::useWebAssemblyFastMemory()) {
 #if CPU(ADDRESS32)
         RELEASE_ASSERT_NOT_REACHED_WITH_MESSAGE("32-bit platforms don't support fast memory.");
 #endif
+        dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 5");
         tryAllocate(vm,
             [&] () -> BufferMemoryResult::Kind {
                 auto result = BufferMemoryManager::singleton().tryAllocateFastMemory();
@@ -175,8 +180,10 @@ RefPtr<Memory> Memory::tryCreate(VM& vm, PageCount initial, PageCount maximum, M
                 return result.kind;
             });
     }
-    
+
+    dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 6");
     if (fastMemory) {
+        dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 7");
         constexpr bool readable = false;
         constexpr bool writable = false;
         if (!OSAllocator::protect(fastMemory + initialBytes, BufferMemoryHandle::fastMappedBytes() - initialBytes, readable, writable)) {
@@ -190,7 +197,8 @@ RefPtr<Memory> Memory::tryCreate(VM& vm, PageCount initial, PageCount maximum, M
 
         switch (sharingMode) {
         case MemorySharingMode::Default: {
-            return Memory::create(adoptRef(*new BufferMemoryHandle(fastMemory, initialBytes, BufferMemoryHandle::fastMappedBytes(), initial, maximum, MemorySharingMode::Default, MemoryMode::Signaling)), WTFMove(growSuccessCallback));
+            dataLogLn("<YIJIA> ", Thread::current(), " Memory::tryCreate 8");
+            return Memory::create(adoptRef(*new BufferMemoryHandle(fastMemory, initialBytes, BufferMemoryHandle::fastMappedBytes(), initial, maximum, MemorySharingMode::Default, MemoryMode::Signaling)), WTFMove(growSuccessCallback)); // <--
         }
         case MemorySharingMode::Shared: {
             auto handle = adoptRef(*new BufferMemoryHandle(fastMemory, initialBytes, BufferMemoryHandle::fastMappedBytes(), initial, maximum, MemorySharingMode::Shared, MemoryMode::Signaling));
