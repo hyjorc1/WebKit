@@ -40,7 +40,6 @@
 #include "DirectArguments.h"
 #include "GetterSetter.h"
 #include "HasOwnPropertyCache.h"
-#include "HashMapImpl.h"
 #include "JSLexicalEnvironment.h"
 #include "JSPropertyNameEnumerator.h"
 #include "ObjectPrototype.h"
@@ -3805,7 +3804,7 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
 
-    case GetMapBucket: {
+    case MapKeyIndex: {
         SpeculateCellOperand map(this, node->child1());
         JSValueOperand key(this, node->child2());
         SpeculateInt32Operand hash(this, node->child3());
@@ -3814,7 +3813,8 @@ void SpeculativeJIT::compile(Node* node)
         JSValueRegs keyRegs = key.jsValueRegs();
         GPRReg hashGPR = hash.gpr();
 
-        if (node->child1().useKind() == MapObjectUse)
+        bool isMapObjectUse = node->child1().useKind() == MapObjectUse;
+        if (isMapObjectUse)
             speculateMapObject(node->child1(), mapGPR);
         else if (node->child1().useKind() == SetObjectUse)
             speculateSetObject(node->child1(), mapGPR);
@@ -3824,28 +3824,62 @@ void SpeculativeJIT::compile(Node* node)
         flushRegisters();
         GPRFlushedCallResult result(this);
         GPRReg resultGPR = result.gpr();
-        if (node->child1().useKind() == MapObjectUse)
-            callOperation(operationJSMapFindBucket, resultGPR, LinkableConstant::globalObject(*this, node), mapGPR, keyRegs, hashGPR);
-        else
-            callOperation(operationJSSetFindBucket, resultGPR, LinkableConstant::globalObject(*this, node), mapGPR, keyRegs, hashGPR);
-        cellResult(resultGPR, node);
+        auto operation = isMapObjectUse ? operationMapKeyIndex : operationSetKeyIndex;
+        callOperation(operation, resultGPR, LinkableConstant::globalObject(*this, node), mapGPR, keyRegs, hashGPR);
+        exceptionCheck();
+        strictInt32Result(resultGPR, node);
         break;
     }
 
-    case GetMapBucketHead:
-        compileGetMapBucketHead(node);
+    case MapValueWithKeyIndex: {
+        SpeculateCellOperand map(this, node->child1());
+        SpeculateInt32Operand keyIndex(this, node->child2());
+        GPRReg mapGPR = map.gpr();
+        GPRReg keyIndexGPR = keyIndex.gpr();
+
+        speculateMapObject(node->child1(), mapGPR);
+
+        Jump notPresentInTable = branch32(Equal, keyIndexGPR, TrustedImm32(JSMap::Accessor::InvalidTableIndex));
+        callOperationWithSilentSpill(operationMapValueWithKeyIndex, resultRegs, LinkableConstant::globalObject(*this, node), mapGPR, keyIndexGPR);
+
+        notPresentInTable.link(this);
+        moveValue(jsUndefined(), resultRegs);
+
+        done.link(this);
+        jsValueResult(resultRegs, node);
+        break;
+    }
+
+    case MapStorage:
+        compileMapStorage(node);
         break;
 
-    case GetMapBucketNext:
-        compileGetMapBucketNext(node);
+    case MapIteratorNext:
+        compileMapIteratorNext(node);
         break;
 
-    case LoadKeyFromMapBucket:
-        compileLoadKeyFromMapBucket(node);
+    case MapIteratorKey:
+        compileMapIteratorKey(node);
         break;
 
-    case LoadValueFromMapBucket:
-        compileLoadValueFromMapBucket(node);
+    case MapIteratorValue:
+        compileMapIteratorValue(node);
+        break;
+
+    case MapIterationNext:
+        compileMapIterationNext(node);
+        break;
+
+    case MapIterationEntry:
+        compileMapIterationEntry(node);
+        break;
+
+    case MapIterationEntryKey:
+        compileMapIterationEntryKey(node);
+        break;
+
+    case MapIterationEntryValue:
+        compileMapIterationEntryValue(node);
         break;
 
     case ExtractValueFromWeakMapGet:

@@ -1026,8 +1026,7 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/GetVM.h
     runtime/GlobalExecutable.h
     runtime/GlobalObjectMethodTable.h
-    runtime/HashMapImpl.h
-    runtime/HashMapImplInlines.h
+    runtime/HashMapHelper.h
     runtime/Identifier.h
     runtime/IdentifierInlines.h
     runtime/ImplementationVisibility.h
@@ -1153,6 +1152,8 @@ set(JavaScriptCore_PRIVATE_FRAMEWORK_HEADERS
     runtime/Operations.h
     runtime/Options.h
     runtime/OptionsList.h
+    runtime/OrderedHashTable.h
+    runtime/OrderedHashTableAccessor.h
     runtime/PageCount.h
     runtime/ParseInt.h
     runtime/PrivateFieldPutKind.h
