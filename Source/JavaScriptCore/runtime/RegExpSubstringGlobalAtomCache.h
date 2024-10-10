@@ -43,8 +43,21 @@ class RegExp;
 //     str.substring(0, 60).match(regExp);
 class RegExpSubstringGlobalAtomCache {
 public:
+    struct Meta {
+        bool isSubstring() { return !!base; }
+
+        JSString* base { nullptr };
+        unsigned offset { 0 };
+        unsigned length { 0 };
+
+        size_t numberOfMatches { 0 };
+        size_t startIndex { 0 };
+    };
+
     static bool hasValidPattern(JSString*, RegExp*);
-    JSValue collectMatches(JSGlobalObject*, JSRopeString* substring, RegExp*);
+    void tryGet(JSString*, RegExp*, RegExpSubstringGlobalAtomCache::Meta&);
+    void tryRecord(VM&, JSGlobalObject*, RegExp*, RegExpSubstringGlobalAtomCache::Meta&);
+    JSValue collectMatches(JSGlobalObject*, JSString*, RegExp*);
 
     DECLARE_VISIT_AGGREGATE;
 

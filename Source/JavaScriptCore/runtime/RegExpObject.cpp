@@ -178,9 +178,11 @@ JSValue RegExpObject::matchGlobal(JSGlobalObject* globalObject, JSString* string
     setLastIndex(globalObject, 0);
     RETURN_IF_EXCEPTION(scope, { });
 
-    if (RegExpSubstringGlobalAtomCache::hasValidPattern(string, regExp)) {
-        auto& cache = globalObject->regExpGlobalData().substringGlobalAtomCache();
-        RELEASE_AND_RETURN(scope, cache.collectMatches(globalObject, string->asRope(), regExp));
+    if (regExp->global() && regExp->hasValidAtom()) {
+        if (string->isSubstring()) {
+            auto& cache = globalObject->regExpGlobalData().substringGlobalAtomCache();
+            RELEASE_AND_RETURN(scope, cache.collectMatches(globalObject, string->asRope(), regExp));
+        }
     }
 
     auto s = string->value(globalObject);

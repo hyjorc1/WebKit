@@ -27,6 +27,9 @@
 #include "RegExpSubstringGlobalAtomCache.h"
 
 #include "JSGlobalObjectInlines.h"
+#include "runtime/JSGlobalObject.h"
+#include "runtime/JSString.h"
+#include "runtime/PropertyName.h"
 
 namespace JSC {
 
@@ -44,79 +47,92 @@ bool RegExpSubstringGlobalAtomCache::hasValidPattern(JSString* string, RegExp* r
     return string->isSubstring() && regExp->global() && regExp->hasValidAtom();
 }
 
-JSValue RegExpSubstringGlobalAtomCache::collectMatches(JSGlobalObject* globalObject, JSRopeString* substring, RegExp* regExp)
+void RegExpSubstringGlobalAtomCache::tryGet(JSString* string, RegExp* regExp, RegExpSubstringGlobalAtomCache::Meta& meta)
+{
+    if (!string->isSubstring())
+        return;
+    JSRopeString* substring = string->asRope();
+    meta.base = substring->substringBase();
+    meta.offset = substring->substringOffset();
+    meta.length = substring->length();
+            
+    if (regExp != m_lastRegExp.get())
+        return;
+    if (substring->substringBase() != m_lastSubstringBase.get())
+        return;
+    if (substring->substringOffset() != m_lastSubstringOffset)
+        return;
+    if (substring->length() < m_lastSubstringLength)
+        return;
+
+    meta.numberOfMatches = m_lastNumberOfMatches;
+    meta.startIndex = m_lastMatchEnd;
+}
+
+void RegExpSubstringGlobalAtomCache::tryRecord(VM& vm, JSGlobalObject* globalObject, RegExp* regExp, RegExpSubstringGlobalAtomCache::Meta& meta)
+{
+    if (!meta.isSubstring())
+        return;
+
+    m_lastSubstringBase.setWithoutWriteBarrier(meta.base);
+    m_lastSubstringOffset = meta.offset;
+    m_lastSubstringLength = meta.length;
+
+    m_lastRegExp.setWithoutWriteBarrier(regExp);
+    m_lastNumberOfMatches = meta.numberOfMatches;
+    m_lastMatchEnd = meta.startIndex;
+
+    vm.writeBarrier(globalObject);
+}
+
+JSValue RegExpSubstringGlobalAtomCache::collectMatches(JSGlobalObject* globalObject, JSString* string, RegExp* regExp)
 {
     VM& vm = globalObject->vm();
     auto scope = DECLARE_THROW_SCOPE(vm);
 
-    // Try to get the last cache if possible
-    size_t numberOfMatches = 0;
-    size_t startIndex = 0;
-    ([&]() ALWAYS_INLINE_LAMBDA {
-        if (regExp != m_lastRegExp.get())
-            return;
-        if (substring->substringBase() != m_lastSubstringBase.get())
-            return;
-        if (substring->substringOffset() != m_lastSubstringOffset)
-            return;
-        if (substring->length() < m_lastSubstringLength)
-            return;
-        numberOfMatches = m_lastNumberOfMatches;
-        startIndex = m_lastMatchEnd;
-    })();
+    // Try to get the last cache.
+    RegExpSubstringGlobalAtomCache::Meta meta;
+    tryGet(string, regExp, meta);
 
-    JSString* substringBase = substring->substringBase();
-    unsigned substringOffset = substring->substringOffset();
-    unsigned substringLength = substring->length();
     // Keep the substring info above since the following will resolve the substring to a non-rope.
-    auto input = substring->value(globalObject);
+    auto input = string->value(globalObject);
     RETURN_IF_EXCEPTION(scope, { });
 
-    MatchResult result = globalObject->regExpGlobalData().performMatch(globalObject, regExp, substring, input, startIndex);
+    MatchResult result = globalObject->regExpGlobalData().performMatch(globalObject, regExp, string, input, meta.startIndex);
     RETURN_IF_EXCEPTION(scope, { });
 
     if (result) {
         do {
-            if (numberOfMatches > MAX_STORAGE_VECTOR_LENGTH) {
+            if (meta.numberOfMatches > MAX_STORAGE_VECTOR_LENGTH) {
                 throwOutOfMemoryError(globalObject, scope);
                 return jsUndefined();
             }
 
-            numberOfMatches++;
-            startIndex = result.end;
+            meta.numberOfMatches++;
+            meta.startIndex = result.end;
             if (result.empty())
-                startIndex++;
+                meta.startIndex++;
 
-            result = globalObject->regExpGlobalData().performMatch(globalObject, regExp, substring, input, startIndex);
+            result = globalObject->regExpGlobalData().performMatch(globalObject, regExp, string, input, meta.startIndex);
             RETURN_IF_EXCEPTION(scope, { });
         } while (result);
-    } else if (!numberOfMatches)
+    } else if (!meta.numberOfMatches)
         return jsNull();
 
     // Construct the array
-    JSArray* array = constructEmptyArray(globalObject, nullptr, numberOfMatches);
+    JSArray* array = constructEmptyArray(globalObject, nullptr, meta.numberOfMatches);
     RETURN_IF_EXCEPTION(scope, { });
 
     const String& atom = regExp->atom();
     ASSERT(!atom.isEmpty() && !atom.isNull());
     JSString* atomString = atom.length() == 1 ? jsSingleCharacterString(vm, atom[0]) : jsNontrivialString(vm, atom);
-    for (size_t i = 0, arrayIndex = 0; i < numberOfMatches; ++i) {
+    for (size_t i = 0, arrayIndex = 0; i < meta.numberOfMatches; ++i) {
         array->putDirectIndex(globalObject, arrayIndex++, atomString);
         RETURN_IF_EXCEPTION(scope, { });
     }
 
     // Cache
-    {
-        m_lastSubstringBase.setWithoutWriteBarrier(substringBase);
-        m_lastSubstringOffset = substringOffset;
-        m_lastSubstringLength = substringLength;
-
-        m_lastRegExp.setWithoutWriteBarrier(regExp);
-        m_lastNumberOfMatches = numberOfMatches;
-        m_lastMatchEnd = startIndex;
-
-        vm.writeBarrier(globalObject);
-    }
+    tryRecord(vm, globalObject, regExp, meta);
     return array;
 }
 

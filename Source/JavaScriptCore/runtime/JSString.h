@@ -319,6 +319,7 @@ private:
 // from JSStringSubspace::
 class JSRopeString final : public JSString {
     friend class JSString;
+    friend class SubstringMeta;
     friend class RegExpObject;
     friend class RegExpSubstringGlobalAtomCache;
 public:
