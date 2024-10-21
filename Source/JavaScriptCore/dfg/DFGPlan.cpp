@@ -51,6 +51,7 @@
 #include "DFGLiveCatchVariablePreservationPhase.h"
 #include "DFGLivenessAnalysisPhase.h"
 #include "DFGLoopPreHeaderCreationPhase.h"
+#include "DFGLoopUnrollingPhase.h"
 #include "DFGMovHintRemovalPhase.h"
 #include "DFGOSRAvailabilityAnalysisPhase.h"
 #include "DFGOSREntrypointCreationPhase.h"
@@ -375,6 +376,11 @@ Plan::CompilationPath Plan::compileInThreadImpl()
         if (Options::createPreHeaders())
             RUN_PHASE(performLoopPreHeaderCreation);
         RUN_PHASE(performCPSRethreading);
+
+        if (Options::useLoopUnrolling()) {
+            RUN_PHASE(performLoopUnrolling);
+        }
+
         RUN_PHASE(performSSAConversion);
         RUN_PHASE(performSSALowering);
         

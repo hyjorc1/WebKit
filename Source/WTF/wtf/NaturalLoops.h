@@ -126,7 +126,7 @@ public:
         // blocks to their loop headers, which gives us all of the blocks in the
         // loop body.
     
-        static constexpr bool verbose = false;
+        static constexpr bool verbose = true;
     
         if (verbose) {
             dataLog("Dominators:\n");
