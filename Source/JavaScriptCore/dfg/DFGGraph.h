@@ -755,7 +755,21 @@ public:
     template<typename ChildFunctor>
     ALWAYS_INLINE void doToChildrenWithNode(Node* node, const ChildFunctor& functor)
     {
-        DFG_NODE_DO_TO_CHILDREN(*this, node, functor);
+        // DFG_NODE_DO_TO_CHILDREN(*this, node, functor);
+        Node* _node = (node);
+        if (_node->flags() & 0x0010) {
+            for (unsigned _childIdx = _node->firstChild(); _childIdx < _node->firstChild() + _node->numChildren(); _childIdx++) {
+                if (!!(*this).m_varArgChildren[_childIdx])
+                    functor(_node, (*this).m_varArgChildren[_childIdx]);
+            }
+        } else {
+            for (unsigned _edgeIndex = 0; _edgeIndex < AdjacencyList ::Size; _edgeIndex++) {
+                Edge& _edge = _node->children.child(_edgeIndex);
+                if (!_edge)
+                    break;
+                functor(_node, _edge);
+            }
+        }
     }
     
     template<typename ChildFunctor>
