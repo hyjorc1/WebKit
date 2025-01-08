@@ -290,6 +290,7 @@
 #include "WebAssemblyTagPrototype.h"
 #include "WrapForValidIteratorPrototypeInlines.h"
 #include "runtime/VM.h"
+#include "tools/VMInspector.h"
 #include <wtf/CryptographicallyRandomNumber.h>
 #include <wtf/FixedVector.h>
 #include <wtf/SystemTracing.h>
@@ -722,6 +723,7 @@ JSGlobalObject::JSGlobalObject(VM& vm, Structure* structure, const GlobalObjectM
     , m_importMap(ImportMap::create())
     , m_globalObjectMethodTable(globalObjectMethodTable ? globalObjectMethodTable : baseGlobalObjectMethodTable())
 {
+    VMInspector::singleton().addJSGlobalObject(this);
 }
 
 JSGlobalObject::~JSGlobalObject()

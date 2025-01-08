@@ -43,6 +43,7 @@ namespace JSC {
 WTF_MAKE_TZONE_ALLOCATED_IMPL(VerifierSlotVisitor);
 WTF_MAKE_TZONE_ALLOCATED_IMPL(VerifierSlotVisitor::MarkedBlockData);
 WTF_MAKE_TZONE_ALLOCATED_IMPL(VerifierSlotVisitor::OpaqueRootData);
+WTF_MAKE_TZONE_ALLOCATED_IMPL(VerifierSlotVisitor::MarkerDataSnapshot);
 WTF_MAKE_TZONE_ALLOCATED_IMPL(VerifierSlotVisitor::PreciseAllocationData);
 
 using MarkerData = VerifierSlotVisitor::MarkerData;
@@ -108,6 +109,7 @@ VerifierSlotVisitor::VerifierSlotVisitor(JSC::Heap& heap)
     : Base(heap, "Verifier", m_opaqueRootStorage)
 {
     m_needsExtraOpaqueRootHandling = true;
+    m_markerDataSnapshot = makeUnique<MarkerDataSnapshot>();
 }
 
 VerifierSlotVisitor::~VerifierSlotVisitor()
@@ -199,6 +201,8 @@ void VerifierSlotVisitor::didAddOpaqueRoot(void* opaqueRoot)
     if (!data)
         data = makeUnique<OpaqueRootData>();
     data->addMarkerData({ referrer(), StackTrace::captureStackTrace(maxMarkingStackFramesToCapture, 1) });
+    MarkerData markerData = { referrer(), StackTrace::captureStackTrace(maxMarkingStackFramesToCapture, 1) };
+    m_markerDataSnapshot->m_opaqueRoots.add(opaqueRoot, WTFMove(markerData));
 }
 
 void VerifierSlotVisitor::didFindOpaqueRoot(void* opaqueRoot)
@@ -313,6 +317,96 @@ void VerifierSlotVisitor::dumpMarkerData(HeapCell* cell)
     } while (cell || opaqueRoot);
 }
 
+void VerifierSlotVisitor::MarkerDataSnapshot::dumpMarkerData(HeapCell* cell)
+{
+    auto markerDataForPreciseAllocation = [&] (PreciseAllocation& allocation) -> const MarkerData* {
+        auto iterator = m_preciseAllocations.find(&allocation);
+        if (iterator == m_preciseAllocations.end())
+            return nullptr;
+        return &iterator->value;
+    };
+
+    auto markerDataForMarkedBlockCell = [&] (HeapCell* cell) -> const MarkerData* {
+        auto iterator = m_markedBlockCells.find(cell);
+        if (iterator == m_markedBlockCells.end())
+            return nullptr;
+        return &iterator->value;
+    };
+
+    auto markerDataForOpaqueRoot = [&] (void* opaqueRoot) -> const MarkerData* {
+        auto iterator = m_opaqueRoots.find(opaqueRoot);
+        if (iterator == m_opaqueRoots.end())
+            return nullptr;
+        return &iterator->value;
+    };
+
+    WTF::dataFile().flush();
+
+    void* opaqueRoot = nullptr;
+    do {
+        const MarkerData* markerData = nullptr;
+
+        if (cell) {
+            if (isJSCellKind(cell->cellKind()))
+                dataLogLn(JSValue(static_cast<JSCell*>(cell))); // TODO: dumped here
+
+            // bool isMarked = heap()->isMarked(cell);
+            // const char* wasOrWasNot = isMarked ? "was" : "was NOT";
+            // dataLogLn("In the real GC, cell ", RawPointer(cell), " ", wasOrWasNot, " marked.");
+
+            if (cell->isPreciseAllocation())
+                markerData = markerDataForPreciseAllocation(cell->preciseAllocation());
+            else
+                markerData = markerDataForMarkedBlockCell(cell);
+            if (!markerData) {
+                dataLogLn("Marker data is not available for cell ", RawPointer(cell));
+                break;
+            }
+            dataLog("In the verifier GC, cell ", RawPointer(cell), " was visited");
+
+        } else {
+            RELEASE_ASSERT(opaqueRoot);
+
+            // bool containsOpaqueRoot = heap()->m_opaqueRoots.contains(opaqueRoot);
+            // const char* wasOrWasNot = containsOpaqueRoot ? "was" : "was NOT";
+            // dataLogLn("In the real GC, opaque root ", RawPointer(opaqueRoot), " ", wasOrWasNot, " added to the heap's opaque roots.");
+
+            markerData = markerDataForOpaqueRoot(opaqueRoot);
+            if (!markerData) {
+                dataLogLn("Marker data is not available for opaque root ", RawPointer(opaqueRoot));
+                break;
+            }
+            dataLog("In the verifier GC, opaque root ", RawPointer(opaqueRoot), " was added");
+        }
+
+        ReferrerToken referrer = markerData->referrer();
+        if (auto* referrerCell = referrer.asCell()) {
+            dataLogLn(" via cell ", RawPointer(referrerCell), " at:");
+            cell = referrerCell;
+            opaqueRoot = nullptr;
+        } else if (auto* referrerOpaqueRoot = referrer.asOpaqueRoot()) {
+            dataLogLn(" via opaque root ", RawPointer(referrerOpaqueRoot), " at:");
+            cell = nullptr;
+            opaqueRoot = referrerOpaqueRoot;
+        } else {
+            auto reason = referrer.asRootMarkReason();
+            if (reason != RootMarkReason::None)
+                dataLogLn(" from scan of ", reason, " roots at:");
+            else
+                dataLogLn(" at:");
+            cell = nullptr;
+            opaqueRoot = nullptr;
+        }
+
+        dataLogLn(StackTracePrinter { *markerData->stack(), "    " });
+    } while (cell || opaqueRoot);
+}
+
+size_t VerifierSlotVisitor::MarkerDataSnapshot::size()
+{
+    return m_opaqueRoots.size() + m_preciseAllocations.size() + m_markedBlockCells.size();
+}
+
 bool VerifierSlotVisitor::isFirstVisit() const
 {
     // In the regular GC, this return value is only used to control whether
@@ -372,8 +466,11 @@ bool VerifierSlotVisitor::testAndSetMarked(PreciseAllocation& allocation)
     std::unique_ptr<PreciseAllocationData>& data = m_preciseAllocationMap.add(&allocation, nullptr).iterator->value;
     if (!data) {
         data = makeUnique<PreciseAllocationData>(&allocation);
-        if (UNLIKELY(Options::verboseVerifyGC()))
+        if (UNLIKELY(Options::verboseVerifyGC())) {
             data->addMarkerData({ referrer(), StackTrace::captureStackTrace(maxMarkingStackFramesToCapture, 2) });
+            MarkerData markerData = { referrer(), StackTrace::captureStackTrace(maxMarkingStackFramesToCapture, 1) };
+            m_markerDataSnapshot->m_preciseAllocations.add(&allocation, WTFMove(markerData));
+        }
         return false;
     }
     return true;
@@ -392,8 +489,11 @@ bool VerifierSlotVisitor::testAndSetMarked(MarkedBlock& block, HeapCell* cell)
 
     unsigned atomNumber = block.atomNumber(cell);
     bool alreadySet = data->testAndSetMarked(atomNumber);
-    if (!alreadySet && UNLIKELY(Options::verboseVerifyGC()))
+    if (!alreadySet && UNLIKELY(Options::verboseVerifyGC())) {
         data->addMarkerData(atomNumber, { referrer(), StackTrace::captureStackTrace(maxMarkingStackFramesToCapture, 2) });
+        MarkerData markerData = { referrer(), StackTrace::captureStackTrace(maxMarkingStackFramesToCapture, 1) };
+        m_markerDataSnapshot->m_markedBlockCells.add(cell, WTFMove(markerData));
+    }
     return alreadySet;
 }
 

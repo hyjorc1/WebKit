@@ -4947,6 +4947,13 @@ sub GenerateImplementation
     } elsif (!NeedsImplementationClass($interface)) {
         push(@implContent, "${className}::$className(Structure* structure, JSDOMGlobalObject& globalObject)\n");
         push(@implContent, "    : $parentClassName(structure, globalObject) { }\n\n");
+    } elsif ($className eq "JSWorker") {
+        AddToImplIncludes("<JavaScriptCore/VMInspector.h>");
+        push(@implContent, "${className}::$className(Structure* structure, JSDOMGlobalObject& globalObject, Ref<$implType>&& impl)\n");
+        push(@implContent, "    : $parentClassName(structure, globalObject, WTFMove(impl))\n");
+        push(@implContent, "{\n");
+        push(@implContent, "    JSC::VMInspector::singleton().addJSWorker(this);");
+        push(@implContent, "}\n\n");
     } else {
         push(@implContent, "${className}::$className(Structure* structure, JSDOMGlobalObject& globalObject, Ref<$implType>&& impl)\n");
         push(@implContent, "    : $parentClassName(structure, globalObject, WTFMove(impl))\n");

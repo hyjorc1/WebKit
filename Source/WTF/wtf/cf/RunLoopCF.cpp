@@ -104,10 +104,12 @@ void RunLoop::dispatch(const SchedulePairHashSet& schedulePairs, Function<void()
 RunLoop::TimerBase::TimerBase(Ref<RunLoop>&& runLoop)
     : m_runLoop(WTFMove(runLoop))
 {
+    RunLoop::Inspector::singleton().add(this);
 }
 
 RunLoop::TimerBase::~TimerBase()
 {
+    RunLoop::Inspector::singleton().remove(this);
     stop();
 }
 
@@ -155,6 +157,34 @@ Seconds RunLoop::TimerBase::secondsUntilFire() const
     if (isActive())
         return std::max<Seconds>(Seconds { CFRunLoopTimerGetNextFireDate(m_timer.get()) - CFAbsoluteTimeGetCurrent() }, 0_s);
     return 0_s;
+}
+
+RunLoop::Inspector& RunLoop::Inspector::singleton()
+{
+    static Inspector* manager;
+    static std::once_flag once;
+    std::call_once(once, [] {
+        manager = new Inspector();
+    });
+    return *manager;
+}
+
+void RunLoop::Inspector::add(TimerBase* target)
+{
+    Locker locker { m_lock };
+    m_liveTimerBases.add(target);
+}
+
+void RunLoop::Inspector::remove(TimerBase* target)
+{
+    Locker locker { m_lock };
+    m_liveTimerBases.remove(target);
+}
+
+unsigned RunLoop::Inspector::count()
+{
+    Locker locker { m_lock };
+    return m_liveTimerBases.size();
 }
 
 } // namespace WTF

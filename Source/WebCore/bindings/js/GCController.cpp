@@ -33,6 +33,7 @@
 #include <JavaScriptCore/Heap.h>
 #include <JavaScriptCore/HeapSnapshotBuilder.h>
 #include <JavaScriptCore/JSLock.h>
+#include <JavaScriptCore/VMInspector.h>
 #include <JavaScriptCore/VM.h>
 #include <pal/Logging.h>
 #include <wtf/FileSystem.h>
@@ -149,6 +150,8 @@ void GCController::dumpHeapForVM(VM& vm)
         return;
     }
 
+    JSC::VMInspector::singleton().snapshotAdd(&vm);
+
     JSLockHolder lock(vm);
     sanitizeStackForVM(vm);
 
@@ -159,7 +162,7 @@ void GCController::dumpHeapForVM(VM& vm)
         HeapSnapshotBuilder snapshotBuilder(vm.ensureHeapProfiler(), HeapSnapshotBuilder::SnapshotType::GCDebuggingSnapshot);
         snapshotBuilder.buildSnapshot();
 
-        jsonData = snapshotBuilder.json();
+        // jsonData = snapshotBuilder.json();
     }
 
     CString utf8String = jsonData.utf8();
@@ -171,6 +174,7 @@ void GCController::dumpHeapForVM(VM& vm)
 
 void GCController::dumpHeap()
 {
+    JSC::VMInspector::singleton().prepareForNewSnapshot();
     dumpHeapForVM(commonVM());
     WorkerGlobalScope::dumpGCHeapForWorkers();
 }

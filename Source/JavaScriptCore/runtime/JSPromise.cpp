@@ -33,6 +33,7 @@
 #include "JSInternalFieldObjectImplInlines.h"
 #include "JSPromiseConstructor.h"
 #include "Microtask.h"
+#include "tools/VMInspector.h"
 
 namespace JSC {
 
@@ -58,6 +59,7 @@ Structure* JSPromise::createStructure(VM& vm, JSGlobalObject* globalObject, JSVa
 JSPromise::JSPromise(VM& vm, Structure* structure)
     : Base(vm, structure)
 {
+    VMInspector::singleton().addJSPromise(this);
 }
 
 void JSPromise::finishCreation(VM& vm)

@@ -27,6 +27,7 @@
 
 #include "CallFrame.h"
 #include "VM.h"
+#include "WeakGCSetInlines.h"
 #include <wtf/DoublyLinkedList.h>
 #include <wtf/Expected.h>
 #include <wtf/IterationStatus.h>
@@ -40,12 +41,14 @@ class VMInspector {
     WTF_MAKE_NONCOPYABLE(VMInspector);
     VMInspector() = default;
 public:
+    using VMSnapshot = HashSet<VM*>;
+
     enum class Error {
         None,
         TimedOut
     };
 
-    static VMInspector& singleton();
+    JS_EXPORT_PRIVATE static VMInspector& singleton();
 
     void add(VM*);
     void remove(VM*);
@@ -88,17 +91,78 @@ public:
     JS_EXPORT_PRIVATE static void dumpCellMemory(JSCell*);
     JS_EXPORT_PRIVATE static void dumpCellMemoryToStream(JSCell*, PrintStream&);
     JS_EXPORT_PRIVATE static void dumpSubspaceHashes(VM*);
+    JS_EXPORT_PRIVATE unsigned vmCount();
 
 #if USE(JSVALUE64)
     static bool verifyCell(VM&, JSCell*);
 #endif
 
+    void dumpLeaks();
+    
+    JS_EXPORT_PRIVATE void prepareForNewSnapshot();
+    JS_EXPORT_PRIVATE void snapshotAdd(VM* vm);
+    JS_EXPORT_PRIVATE void setCommonVM(VM* vm);
+
+#define ADD_REMOVE_COUNT(name)                      \
+    JS_EXPORT_PRIVATE void add##name(void*);        \
+    JS_EXPORT_PRIVATE void remove##name(void*);     \
+    JS_EXPORT_PRIVATE unsigned live##name##Count(); \
+    UncheckedKeyHashSet<void*> m_live##name##Set;
+
+    ADD_REMOVE_COUNT(Document)
+    ADD_REMOVE_COUNT(Worker)
+    ADD_REMOVE_COUNT(DOMWrapper)
+    ADD_REMOVE_COUNT(ScriptWrapperable)
+    ADD_REMOVE_COUNT(WasmMemory)
+    ADD_REMOVE_COUNT(WasmModule)
+    ADD_REMOVE_COUNT(WasmTable)
+
+#define ADD_COUNT(name) \
+    JS_EXPORT_PRIVATE void add##name(JSCell*); \
+    JS_EXPORT_PRIVATE unsigned live##name##Count(VM*);
+
+    ADD_COUNT(JSGlobalObject)
+    ADD_COUNT(JSWorker)
+    ADD_COUNT(JSFunction)
+    ADD_COUNT(JSWebAssemblyInstance)
+    ADD_COUNT(JSPromise)
+
+    JS_EXPORT_PRIVATE void removeVM(VM*);
+    
 private:
     JS_EXPORT_PRIVATE static bool isValidVMSlow(VM*);
+    JS_EXPORT_PRIVATE static void registerDumpLeak();
 
     Lock m_lock;
     DoublyLinkedList<VM> m_vmList WTF_GUARDED_BY_LOCK(m_lock);
     JS_EXPORT_PRIVATE static VM* m_recentVM;
+
+public:
+    JS_EXPORT_PRIVATE VM* m_commonVM;
+    VMSnapshot m_currentSnapshot;
+    Vector<VMSnapshot> m_globalSnapshots;
+
+    class Data {
+        WTF_MAKE_TZONE_ALLOCATED(Data);
+        WTF_MAKE_NONCOPYABLE(Data);
+    public:
+        Data(VM& vm)
+            : m_JSGlobalObjectSet(vm)
+            , m_JSWorkerSet(vm)
+            , m_JSFunctionSet(vm)
+            , m_JSWebAssemblyInstanceSet(vm)
+            , m_JSPromiseSet(vm)
+        {
+        }
+
+        WeakGCSet<JSCell> m_JSGlobalObjectSet;
+        WeakGCSet<JSCell> m_JSWorkerSet;
+        WeakGCSet<JSCell> m_JSFunctionSet;
+        WeakGCSet<JSCell> m_JSWebAssemblyInstanceSet;
+        WeakGCSet<JSCell> m_JSPromiseSet;
+    };
+    
+    UncheckedKeyHashMap<VM*, std::unique_ptr<Data>> m_data;
 };
 
 } // namespace JSC

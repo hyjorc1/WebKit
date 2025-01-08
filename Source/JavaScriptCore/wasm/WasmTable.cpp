@@ -90,6 +90,12 @@ Table::Table(uint32_t initial, std::optional<uint32_t> maximum, Type wasmType, T
 {
     setLength(initial);
     ASSERT(!m_maximum || *m_maximum >= m_length);
+    VMInspector::singleton().addWasmTable(this);
+}
+
+Table::~Table()
+{
+    VMInspector::singleton().addWasmTable(this);
 }
 
 RefPtr<Table> Table::tryCreate(uint32_t initial, std::optional<uint32_t> maximum, TableElementType type, Type wasmType)

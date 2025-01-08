@@ -92,6 +92,7 @@
 #include <wtf/Scope.h>
 #include <wtf/SimpleStats.h>
 #include <wtf/Threading.h>
+#include "HeapSnapshot.h"
 
 #if USE(BMALLOC_MEMORY_FOOTPRINT_API)
 #include <bmalloc/bmalloc.h>
@@ -1739,6 +1740,7 @@ NEVER_INLINE bool Heap::runEndPhase(GCConductor conn)
     ParkingLot::unparkAll(&m_worldState);
 
     dataLogLnIf(Options::logGC(), "GC END!");
+    dataLogLn("vm=", RawPointer(&vm()), " GC END!");
 
     setNeedFinalize();
 
@@ -3313,6 +3315,11 @@ void Heap::dumpVerifierMarkerData(HeapCell* cell)
 
     dataLogLn("\n" "GC Verifier: Found marked cell ", RawPointer(cell), " with MarkerData:");
     visitor.dumpMarkerData(cell);
+}
+
+void Heap::moveMarkerData(HeapSnapshot& snapshot)
+{
+    snapshot.moveMarkerData(m_verifierSlotVisitor);
 }
 
 void Heap::verifyGC()

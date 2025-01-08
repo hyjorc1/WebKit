@@ -43,6 +43,7 @@
 #include "StackVisitor.h"
 #include "TypeError.h"
 #include "VMTrapsInlines.h"
+#include "VMInspector.h"
 #if ENABLE(WEBASSEMBLY)
 #include "WebAssemblyFunction.h"
 #endif
@@ -103,6 +104,7 @@ JSFunction::JSFunction(VM& vm, NativeExecutable* executable, JSGlobalObject* glo
     : Base(vm, globalObject, structure)
     , m_executableOrRareData(std::bit_cast<uintptr_t>(executable))
 {
+    VMInspector::singleton().addJSFunction(this);
     assertTypeInfoFlagInvariants();
     ASSERT(structure->globalObject() == globalObject);
 }

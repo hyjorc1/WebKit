@@ -78,6 +78,7 @@
 #include "WorkerThread.h"
 #include <JavaScriptCore/ScriptArguments.h>
 #include <JavaScriptCore/ScriptCallStack.h>
+#include <JavaScriptCore/VMInspector.h>
 #include <wtf/Lock.h>
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/WorkQueue.h>
@@ -704,6 +705,14 @@ void WorkerGlobalScope::dumpGCHeapForWorkers()
             GCController::dumpHeapForVM(downcast<WorkerGlobalScope>(context).vm());
         });
     }
+
+    unsigned vmCount = allWorkerGlobalScopeIdentifiers().size() + 1;
+
+    {
+        JSC::VMInspector& inspector = JSC::VMInspector::singleton();
+        RELEASE_BASSERT(inspector.vmCount() == vmCount);
+    }
+
 }
 
 void WorkerGlobalScope::setMainScriptSourceProvider(ScriptBufferSourceProvider& provider)

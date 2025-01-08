@@ -34,6 +34,7 @@
 #include "WebCoreJSClientData.h"
 #include <JavaScriptCore/EdenGCActivityCallback.h>
 #include <JavaScriptCore/FullGCActivityCallback.h>
+#include <JavaScriptCore/VMInspector.h>
 #include <JavaScriptCore/HeapInlines.h>
 #include <JavaScriptCore/MachineStackMarker.h>
 #include <JavaScriptCore/VM.h>
@@ -73,6 +74,9 @@ JSC::VM& commonVMSlow()
 #endif
 
     g_commonVMOrNull = &vm;
+    JSC::VMInspector::singleton().setCommonVM(&vm);
+    // JSC::StrongRefTracker::refTrackerSingleton().m_commonVM = g_commonVMOrNull;
+    // dataLogLn("g_commonVMOrNull=", RawPointer(g_commonVMOrNull));
 
     vm.heap.acquireAccess(); // At any time, we may do things that affect the GC.
 

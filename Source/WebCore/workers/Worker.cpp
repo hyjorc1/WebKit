@@ -56,6 +56,12 @@
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/text/MakeString.h>
 
+#include <JavaScriptCore/VMInspector.h>
+
+#if USE(SKIA)
+#include "JSImageBitmap.h"
+#endif
+
 namespace WebCore {
 
 WTF_MAKE_TZONE_OR_ISO_ALLOCATED_IMPL(Worker);
@@ -87,6 +93,8 @@ Worker::Worker(ScriptExecutionContext& context, JSC::RuntimeFlags runtimeFlags, 
     , m_runtimeFlags(runtimeFlags)
     , m_clientIdentifier(ScriptExecutionContextIdentifier::generate())
 {
+    JSC::VMInspector::singleton().addWorker(this);
+
     static bool addedListener;
     if (!addedListener) {
         platformStrategies()->loaderStrategy()->addOnlineStateChangeListener(&networkStateChanged);
@@ -132,6 +140,8 @@ ExceptionOr<Ref<Worker>> Worker::create(ScriptExecutionContext& context, JSC::Ru
 
 Worker::~Worker()
 {
+    JSC::VMInspector::singleton().removeWorker(this);
+
     {
         Locker locker { allWorkersLock };
         allWorkerContexts().remove(m_clientIdentifier);

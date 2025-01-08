@@ -33,10 +33,18 @@
 #include "JSCInlines.h"
 #include "JSCast.h"
 #include "PreventCollectionScope.h"
+#include "VerifierSlotVisitorScope.h"
 #include "VM.h"
+#include "wtf/DataLog.h"
+#include "wtf/RawPointer.h"
 #include <wtf/HexNumber.h>
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/text/StringBuilder.h>
+
+#include <wtf/Threading.h>
+#include <wtf/RunLoop.h>
+#include <JavaScriptCore/VMInspector.h>
+#include <JavaScriptCore/WaiterListManager.h>
 
 namespace JSC {
 
@@ -66,22 +74,52 @@ void HeapSnapshotBuilder::buildSnapshot()
     if (m_snapshotType == SnapshotType::GCDebuggingSnapshot)
         m_profiler.clearSnapshots();
 
-    PreventCollectionScope preventCollectionScope(m_profiler.vm().heap);
+    VM& vm = m_profiler.vm();
+    Heap& heap = vm.heap;
+    PreventCollectionScope preventCollectionScope(heap);
+    VerifierSlotVisitorScope verifierSlotVisitorScope(heap);
 
-    m_snapshot = makeUnique<HeapSnapshot>(m_profiler.mostRecentSnapshot());
+    m_snapshot = makeUnique<HeapSnapshot>(m_profiler.yijiaMostRecentSnapshot(), vm);
     {
         ASSERT(!m_profiler.activeHeapAnalyzer());
         m_profiler.setActiveHeapAnalyzer(this);
-        m_profiler.vm().heap.collectNow(Sync, CollectionScope::Full);
+        heap.collectNow(Sync, CollectionScope::Full);
         m_profiler.setActiveHeapAnalyzer(nullptr);
     }
 
+    auto& inspector = JSC::VMInspector::singleton();
+    
     {
         Locker locker { m_buildingNodeMutex };
         m_appendedCells.clear();
         m_snapshot->finalize();
+        heap.moveMarkerData(*m_snapshot);
     }
-    m_profiler.appendSnapshot(WTFMove(m_snapshot));
+    // m_profiler.yijia_snapshots.append(WTFMove(m_snapshot));
+    {
+        Locker locker { Thread::allThreadsLock() };
+        WTF::dataLogLn("HeapSnapshotBuilder::buildSnapshot end with m_profiler=", WTF::RawPointer(&m_profiler),
+            // "\n\tyijia_snapshots.size()=", m_profiler.yijia_snapshots.size(),
+            // "\n\tyijiaMostRecentSnapshot()->roots().size()=", m_profiler.yijiaMostRecentSnapshot()->roots().size(),
+            // "\n\tyijiaMostRecentSnapshot()->nodes().size()=", m_profiler.yijiaMostRecentSnapshot()->nodes().size(),
+            "\n\tyijiaMostRecentSnapshot()->roots().size()=", m_snapshot->roots().size(),
+            "\n\tyijiaMostRecentSnapshot()->nodes().size()=", m_snapshot->nodes().size(),
+            // "\n\tyijiaMostRecentSnapshot()->markerData().size()=", m_profiler.yijiaMostRecentSnapshot()->markerData().size(),
+            "\n\tliveThreadCount=", Thread::allThreads().size(),
+            "\n\tliveDocumentCount=", inspector.liveDocumentCount(),
+            "\n\tliveWorkerCount=", inspector.liveWorkerCount(),
+            "\n\tliveWasmMemoryCount=", inspector.liveWasmMemoryCount(),
+            "\n\tliveWasmModuleCount=", inspector.liveWasmModuleCount(),
+            "\n\tliveWasmTableCount=", inspector.liveWasmTableCount(),
+            "\n\tliveJSGlobalObjectCount=", inspector.liveJSGlobalObjectCount(&vm),
+            "\n\tliveJSWorkerCount=", inspector.liveJSWorkerCount(&vm),
+            "\n\tliveJSFunctionCount=", inspector.liveJSFunctionCount(&vm),
+            "\n\tliveJSWebAssemblyInstanceCount=", inspector.liveJSWebAssemblyInstanceCount(&vm),
+            "\n\tliveJSPromiseCount=", inspector.liveJSPromiseCount(&vm),
+            "\n\tliveTimerBaseCount=", WTF::RunLoop::Inspector::singleton().count(),
+            "\n\tliveScriptWrappableCount=", inspector.liveScriptWrapperableCount(),
+            "\n\ttotalWaiterCount=", JSC::WaiterListManager::singleton().totalWaiterCount());
+    }
 }
 
 void HeapSnapshotBuilder::analyzeNode(JSCell* cell)
@@ -90,15 +128,16 @@ void HeapSnapshotBuilder::analyzeNode(JSCell* cell)
 
     ASSERT(m_profiler.vm().heap.isMarked(cell));
 
-    NodeIdentifier identifier;
-    if (previousSnapshotHasNodeForCell(cell, identifier))
-        return;
+    // NodeIdentifier identifier;
+    // if (previousSnapshotHasNodeForCell(cell, identifier))
+    //     return;
 
     Locker locker { m_buildingNodeMutex };
     auto addResult = m_appendedCells.add(cell);
     if (!addResult.isNewEntry)
         return;
-    m_snapshot->appendNode(HeapSnapshotNode(cell, getNextObjectIdentifier()));
+    m_snapshot->m_yijia_nodes.add(cell);
+    // m_snapshot->appendNode(HeapSnapshotNode(cell, getNextObjectIdentifier()));
 }
 
 void HeapSnapshotBuilder::analyzeEdge(JSCell* from, JSCell* to, RootMarkReason rootMarkReason)
@@ -118,9 +157,7 @@ void HeapSnapshotBuilder::analyzeEdge(JSCell* from, JSCell* to, RootMarkReason r
                 WTFLogAlways("Cell %p is a root but no root marking reason was supplied", to);
         }
 
-        m_rootData.ensure(to, [] () -> RootData {
-            return { };
-        }).iterator->value.markReason = rootMarkReason;
+        m_snapshot->m_yijia_roots.add(to);
     }
 
     m_edges.append(HeapSnapshotEdge(from, to));
@@ -163,9 +200,7 @@ void HeapSnapshotBuilder::setOpaqueRootReachabilityReasonForCell(JSCell* cell, A
 
     Locker locker { m_buildingEdgeMutex };
 
-    m_rootData.ensure(cell, [] () -> RootData {
-        return { };
-    }).iterator->value.reachabilityFromOpaqueRootReasons = reason;
+    m_snapshot->m_yijia_roots.add(cell);
 }
 
 void HeapSnapshotBuilder::setWrappedObjectForCell(JSCell* cell, void* wrappedPtr)
@@ -478,7 +513,7 @@ String HeapSnapshotBuilder::json(Function<bool (const HeapSnapshotNode&)> allowN
     else
         json.append("0,0,0,0"_s);
 
-    for (HeapSnapshot* snapshot = m_profiler.mostRecentSnapshot(); snapshot; snapshot = snapshot->previous()) {
+    for (HeapSnapshot* snapshot = m_profiler.yijiaMostRecentSnapshot(); snapshot; snapshot = snapshot->previous()) {
         for (auto& node : snapshot->m_nodes)
             appendNodeJSON(node);
     }
@@ -572,10 +607,11 @@ String HeapSnapshotBuilder::json(Function<bool (const HeapSnapshotNode&)> allowN
     if (m_snapshotType == SnapshotType::GCDebuggingSnapshot) {
         json.append(",\"roots\":["_s);
 
-        HeapSnapshot* snapshot = m_profiler.mostRecentSnapshot();
+        HeapSnapshot* snapshot = m_profiler.yijiaMostRecentSnapshot();
 
         bool firstNode = true;
-        for (auto it : m_rootData) {
+        auto& roots = m_snapshot->m_roots;
+        for (auto it : roots) {
             auto snapshotNode = snapshot->nodeForCell(it.key);
             if (!snapshotNode) {
                 if (Options::verboseHeapSnapshotLogging())

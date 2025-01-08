@@ -130,7 +130,7 @@ public:
 #if USE(WINDOWS_EVENT_LOOP)
     static void registerRunLoopMessageWindowClass();
 #endif
-
+    
     class TimerBase {
         friend class RunLoop;
     public:
@@ -179,6 +179,18 @@ public:
 #endif
     };
 
+    class Inspector {
+        WTF_MAKE_FAST_ALLOCATED;
+    public:
+        WTF_EXPORT_PRIVATE static Inspector& singleton();
+        void add(TimerBase*);
+        void remove(TimerBase*);
+        unsigned count();
+
+        Lock m_lock;
+        HashSet<void*> m_liveTimerBases;
+    };
+    
     class Timer : public TimerBase {
         WTF_MAKE_FAST_ALLOCATED;
     public:

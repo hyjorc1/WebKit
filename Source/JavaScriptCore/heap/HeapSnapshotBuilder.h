@@ -109,6 +109,11 @@ class JS_EXPORT_PRIVATE HeapSnapshotBuilder final : public HeapAnalyzer {
 public:
     enum SnapshotType { InspectorSnapshot, GCDebuggingSnapshot };
 
+    struct RootData {
+        ASCIILiteral reachabilityFromOpaqueRootReasons;
+        RootMarkReason markReason { RootMarkReason::None };
+    };
+    
     HeapSnapshotBuilder(HeapProfiler&, SnapshotType = SnapshotType::InspectorSnapshot, OverflowPolicy = OverflowPolicy::CrashOnOverflow);
     ~HeapSnapshotBuilder() final;
 
@@ -145,11 +150,6 @@ private:
     
     String descriptionForCell(JSCell*) const;
     
-    struct RootData {
-        ASCIILiteral reachabilityFromOpaqueRootReasons;
-        RootMarkReason markReason { RootMarkReason::None };
-    };
-    
     HeapProfiler& m_profiler;
     OverflowPolicy m_overflowPolicy;
     bool m_hasOverflowed { false };
@@ -159,7 +159,6 @@ private:
     std::unique_ptr<HeapSnapshot> m_snapshot;
     Lock m_buildingEdgeMutex;
     Vector<HeapSnapshotEdge> m_edges;
-    UncheckedKeyHashMap<JSCell*, RootData> m_rootData;
     UncheckedKeyHashMap<JSCell*, void*> m_wrappedObjectPointers;
     UncheckedKeyHashMap<JSCell*, String> m_cellLabels;
     UncheckedKeyHashSet<JSCell*> m_appendedCells;

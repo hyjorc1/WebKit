@@ -122,7 +122,6 @@ public:
         m_doneMarking = true;
     }
 
-private:
     class MarkedBlockData {
         WTF_MAKE_TZONE_ALLOCATED(MarkedBlockData);
         WTF_MAKE_NONCOPYABLE(MarkedBlockData);
@@ -178,6 +177,19 @@ private:
     using PreciseAllocationMap = UncheckedKeyHashMap<PreciseAllocation*, std::unique_ptr<PreciseAllocationData>>;
     using OpaqueRootMap = UncheckedKeyHashMap<void*, std::unique_ptr<OpaqueRootData>>;
 
+    class MarkerDataSnapshot {
+        WTF_MAKE_TZONE_ALLOCATED(MarkerDataSnapshot);
+        WTF_MAKE_NONCOPYABLE(MarkerDataSnapshot);
+    public:
+        MarkerDataSnapshot() = default;
+        UncheckedKeyHashMap<void*, MarkerData> m_opaqueRoots;
+        UncheckedKeyHashMap<PreciseAllocation*, MarkerData> m_preciseAllocations;
+        UncheckedKeyHashMap<HeapCell*, MarkerData> m_markedBlockCells;
+        void dumpMarkerData(HeapCell*);
+        size_t size();
+    };
+    
+private:
     void appendToMarkStack(JSCell*);
     void appendSlow(JSCell* cell) { setMarkedAndAppendToMarkStack(cell); }
 
@@ -195,6 +207,8 @@ private:
     ConcurrentPtrHashSet m_opaqueRootStorage;
     Deque<RefPtr<SharedTask<void(AbstractSlotVisitor&)>>, 32> m_constraintTasks;
     bool m_doneMarking { false };
+public:
+    std::unique_ptr<MarkerDataSnapshot> m_markerDataSnapshot;
 };
 
 } // namespace JSC

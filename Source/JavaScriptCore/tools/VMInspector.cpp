@@ -29,21 +29,40 @@
 #include "CodeBlock.h"
 #include "CodeBlockSet.h"
 #include "HeapInlines.h"
+#include "HeapProfiler.h"
 #include "HeapIterationScope.h"
 #include "JSCInlines.h"
 #include "JSWebAssemblyModule.h"
 #include "MarkedSpaceInlines.h"
 #include "StackVisitor.h"
 #include "VMEntryRecord.h"
+#include "heap/Weak.h"
+#include "VerifierSlotVisitor.h"
+#include "wtf/DataLog.h"
+#include "wtf/RawPointer.h"
+#include "wtf/RefTrackerMixin.h"
 #include <mutex>
 #include <wtf/Expected.h>
 #include <wtf/TZoneMallocInlines.h>
 
+#include "HeapSnapshot.h"
+#include "wtf/StdLibExtras.h"
+
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
+
+#include <wtf/MemoryPressureHandler.h>
+
+#if PLATFORM(COCOA)
+#include <notify.h>
+#include <unistd.h>
+#include <wtf/BlockPtr.h>
+#include <wtf/StackShot.h>
+#endif
 
 namespace JSC {
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(VMInspector);
+WTF_MAKE_TZONE_ALLOCATED_IMPL(VMInspector::Data);
 
 VM* VMInspector::m_recentVM { nullptr };
 
@@ -62,6 +81,7 @@ void VMInspector::add(VM* vm)
     Locker locker { m_lock };
     m_recentVM = vm;
     m_vmList.append(vm);
+    registerDumpLeak();
 }
 
 void VMInspector::remove(VM* vm)
@@ -713,6 +733,203 @@ void VMInspector::dumpSubspaceHashes(VM* vm)
     dataLogLn();
 }
 
-WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+void VMInspector::dumpLeaks()
+{
+    Locker locker { m_lock };
+
+    DisallowGC disallowGC;
+    
+    RELEASE_ASSERT(m_globalSnapshots.size() >= 2);
+    m_globalSnapshots.append(WTFMove(m_currentSnapshot));
+
+    VMSnapshot& s1 = m_globalSnapshots[m_globalSnapshots.size() - 3];
+    VMSnapshot& s2 = m_globalSnapshots[m_globalSnapshots.size() - 2];
+    VMSnapshot& s3 = m_globalSnapshots[m_globalSnapshots.size() - 1];
+
+    HashSet<VM*> intersection_2_3 = s2.intersectionWith(s3);
+    HashSet<VM*> intersection_1_2 = s1.intersectionWith(s2);
+    HashSet<VM*> leaks = intersection_2_3.differenceWith(intersection_1_2);
+
+    if (leaks.isEmpty()) {
+        HeapProfiler* profiler = m_commonVM->heapProfiler();
+        if (!profiler) {
+            WTF::dataLogLn("VMInspector::dumpLeaks profiler is not valid");
+            return;
+        }
+
+        Vector<std::unique_ptr<HeapSnapshot>>& snapshots = profiler->yijia_snapshots;
+        if (snapshots.size() < 3)
+            return;
+
+        dataLogLn("VMInspector::dumpLeaks profiler=", RawPointer(profiler), " has snapshots size=", snapshots.size());
+
+    
+        HeapSnapshot& s1 = *snapshots[snapshots.size() - 3];
+        HeapSnapshot& s2 = *snapshots[snapshots.size() - 2];
+        HeapSnapshot& s3 = *snapshots[snapshots.size() - 1];
+
+        // roots
+        {
+            dataLogLn("VMInspector::dumpLeaks s1 roots size=", s1.roots().size(), " s2 roots size=", s2.roots().size(), " s3 roots size=", s3.roots().size());
+            
+            HashSet<JSCell*> intersection_2_3;
+            HashSet<JSCell*> intersection_1_2;
+
+            for (auto& e : s2.roots()) {
+                if (s3.roots().contains(e.get()))
+                    intersection_2_3.add(e.get());
+            }
+
+            for (auto& e : s1.roots()) {
+                if (s2.roots().contains(e.get()))
+                    intersection_1_2.add(e.get());
+            }
+
+            HashSet<JSCell*> leaks = intersection_2_3.differenceWith(intersection_1_2);
+            dataLogLn("VMInspector::dumpLeaks found leaked roots size=", leaks.size(), " in m_commonVM where intersection_2_3 size=", intersection_2_3.size(), " intersection_1_2 size=", intersection_1_2.size());
+
+            if (Options::dumpLeakedRootMarkerData()) {
+                for (JSCell* cell : leaks) {
+                    dataLogLn("<dumpMarkerData> START for root=", RawPointer(cell));
+                    s3.markerData().dumpMarkerData(cell);
+                    dataLogLn("<dumpMarkerData> END   for root=", RawPointer(cell));
+                }
+            }
+        }
+
+        // cells
+        {
+            dataLogLn("VMInspector::dumpLeaks s1 cells size=", s1.nodes().size(), " s2 cells size=", s2.nodes().size(), " s3 cells size=", s3.nodes().size());
+
+            HashSet<JSCell*> intersection_2_3;
+            HashSet<JSCell*> intersection_1_2;
+
+            for (auto& e : s2.nodes()) {
+                if (s3.nodes().contains(e.get()))
+                    intersection_2_3.add(e.get());
+            }
+
+            for (auto& e : s1.nodes()) {
+                if (s2.nodes().contains(e.get()))
+                    intersection_1_2.add(e.get());
+            }
+
+            HashSet<JSCell*> leaks = intersection_2_3.differenceWith(intersection_1_2);
+            dataLogLn("VMInspector::dumpLeaks found leaked cells size=", leaks.size(), " in m_commonVM where intersection_2_3 size=", intersection_2_3.size(), " intersection_1_2 size=", intersection_1_2.size());
+
+            if (Options::dumpLeakedCellMarkerData()) {
+                for (JSCell* cell : leaks) {
+                    dataLogLn("<dumpMarkerData> START for cell=", RawPointer(cell));
+                    s3.markerData().dumpMarkerData(cell);
+                    dataLogLn("<dumpMarkerData> END   for cell=", RawPointer(cell));
+                }
+            }
+            
+        }
+
+    } else {
+        dataLogLn("VMInspector::dumpLeaks found leaked VMs=", leaks.size());
+    }
+
+}
+
+void VMInspector::registerDumpLeak()
+{
+    static std::once_flag registerFlag;
+    std::call_once(registerFlag, []() {
+        const char* key = "yijia.dumpLeak";
+
+        int token;
+        int status = notify_register_dispatch(key, &token, dispatch_get_main_queue(), ^(int) {
+            JSC::VMInspector& inspector = JSC::VMInspector::singleton();
+            inspector.prepareForNewSnapshot();
+            inspector.dumpLeaks();
+        });
+
+        if (status != NOTIFY_STATUS_OK) {
+            WTF::dataLogLn("VMInspector::registerDumpLeak notify_register_dispatch failed with status=", status);
+        } else {
+            WTF::dataLogLn("VMInspector::registerDumpLeak notify_register_dispatch succeed with status=", status, " key=", key);
+        }
+    });
+
+}
+
+void VMInspector::setCommonVM(VM* vm)
+{
+    Locker locker { m_lock };
+    m_commonVM = vm;
+}
+
+void VMInspector::snapshotAdd(VM* vm)
+{
+    Locker locker { m_lock };
+    m_currentSnapshot.add(vm);
+}
+
+unsigned VMInspector::vmCount()
+{
+    Locker lock { m_lock };
+    return m_vmList.size();
+}
+
+void VMInspector::prepareForNewSnapshot()
+{
+    Locker locker { m_lock };
+    if (!m_currentSnapshot.isEmpty())
+        m_globalSnapshots.append(WTFMove(m_currentSnapshot));
+}
+
+#define ADD_REMOVE_COUNT_IMPL(name)              \
+    void VMInspector::add##name(void* target)    \
+    {                                            \
+        Locker locker { m_lock };                \
+        m_live##name##Set.add(target);           \
+    }                                            \
+    void VMInspector::remove##name(void* target) \
+    {                                            \
+        Locker locker { m_lock };                \
+        m_live##name##Set.remove(target);        \
+    }                                            \
+    unsigned VMInspector::live##name##Count()    \
+    {                                            \
+        Locker locker { m_lock };                \
+        return m_live##name##Set.size();         \
+    }
+
+ADD_REMOVE_COUNT_IMPL(Document)
+ADD_REMOVE_COUNT_IMPL(Worker)
+ADD_REMOVE_COUNT_IMPL(DOMWrapper)
+ADD_REMOVE_COUNT_IMPL(ScriptWrapperable)
+ADD_REMOVE_COUNT_IMPL(WasmMemory)
+ADD_REMOVE_COUNT_IMPL(WasmModule)
+ADD_REMOVE_COUNT_IMPL(WasmTable)
+
+#define ADD_COUNT_IMPL(name)                                                              \
+    void VMInspector::add##name(JSCell* target)                                           \
+    {                                                                                     \
+        Locker locker { m_lock };                                                         \
+        VM& vm = target->vm();                                                            \
+        m_data.add(&vm, makeUnique<Data>(vm)).iterator->value->m_##name##Set.add(target); \
+    }                                                                                     \
+    unsigned VMInspector::live##name##Count(VM* vm)                                       \
+    {                                                                                     \
+        Locker locker { m_lock };                                                         \
+        return m_data.get(vm)->m_##name##Set.size();                                      \
+    }
+
+ADD_COUNT_IMPL(JSGlobalObject)
+ADD_COUNT_IMPL(JSWorker)
+ADD_COUNT_IMPL(JSFunction)
+ADD_COUNT_IMPL(JSWebAssemblyInstance)
+ADD_COUNT_IMPL(JSPromise)
+
+void VMInspector::removeVM(VM* vm)
+{
+    Locker locker { m_lock };
+    m_data.remove(vm);
+}
 
 } // namespace JSC
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_END

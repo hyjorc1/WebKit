@@ -33,6 +33,8 @@
 #include "NativeExecutable.h"
 #include <wtf/text/MakeString.h>
 
+#include "VMInspector.h"
+
 namespace JSC {
 
 inline Structure* JSFunction::createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
@@ -74,6 +76,7 @@ inline JSFunction::JSFunction(VM& vm, FunctionExecutable* executable, JSScope* s
     : Base(vm, scope, structure)
     , m_executableOrRareData(std::bit_cast<uintptr_t>(executable))
 {
+    VMInspector::singleton().addJSFunction(this);
     assertTypeInfoFlagInvariants();
 }
 

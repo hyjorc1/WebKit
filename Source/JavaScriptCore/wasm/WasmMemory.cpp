@@ -25,6 +25,7 @@
 
 #include "config.h"
 #include "WasmMemory.h"
+#include "tools/VMInspector.h"
 
 #if ENABLE(WEBASSEMBLY)
 
@@ -97,6 +98,7 @@ Memory::Memory(VM& vm)
     : m_handle(adoptRef(*new BufferMemoryHandle(BufferMemoryHandle::nullBasePointer(), 0, 0, PageCount(0), PageCount(0), MemorySharingMode::Default, MemoryMode::BoundsChecking)))
     , m_instances(vm)
 {
+    VMInspector::singleton().addWasmMemory(this);
 }
 
 Memory::Memory(VM& vm, PageCount initial, PageCount maximum, MemorySharingMode sharingMode, WTF::Function<void(GrowSuccess, PageCount, PageCount)>&& growSuccessCallback)
@@ -108,6 +110,7 @@ Memory::Memory(VM& vm, PageCount initial, PageCount maximum, MemorySharingMode s
     ASSERT(mode() == MemoryMode::BoundsChecking);
     dataLogLnIf(verbose, "Memory::Memory allocating ", *this);
     ASSERT(basePointer());
+    VMInspector::singleton().addWasmMemory(this);
 }
 
 Memory::Memory(VM& vm, Ref<BufferMemoryHandle>&& handle, WTF::Function<void(GrowSuccess, PageCount, PageCount)>&& growSuccessCallback)
@@ -116,6 +119,7 @@ Memory::Memory(VM& vm, Ref<BufferMemoryHandle>&& handle, WTF::Function<void(Grow
     , m_instances(vm)
 {
     dataLogLnIf(verbose, "Memory::Memory allocating ", *this);
+    VMInspector::singleton().addWasmMemory(this);
 }
 
 Memory::Memory(VM& vm, Ref<BufferMemoryHandle>&& handle, Ref<SharedArrayBufferContents>&& shared, WTF::Function<void(GrowSuccess, PageCount, PageCount)>&& growSuccessCallback)
@@ -125,6 +129,7 @@ Memory::Memory(VM& vm, Ref<BufferMemoryHandle>&& handle, Ref<SharedArrayBufferCo
     , m_instances(vm)
 {
     dataLogLnIf(verbose, "Memory::Memory allocating ", *this);
+    VMInspector::singleton().addWasmMemory(this);
 }
 
 Ref<Memory> Memory::create(VM& vm)
@@ -247,7 +252,10 @@ RefPtr<Memory> Memory::tryCreate(VM& vm, PageCount initial, PageCount maximum, M
     return nullptr;
 }
 
-Memory::~Memory() = default;
+Memory::~Memory()
+{
+    VMInspector::singleton().removeWasmMemory(this);
+}
 
 bool Memory::addressIsInGrowableOrFastMemory(void* address)
 {

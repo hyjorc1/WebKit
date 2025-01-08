@@ -25,6 +25,7 @@
 
 #include "config.h"
 #include "JSWebAssemblyInstance.h"
+#include "tools/VMInspector.h"
 
 #if ENABLE(WEBASSEMBLY)
 
@@ -104,6 +105,7 @@ JSWebAssemblyInstance::JSWebAssemblyInstance(VM& vm, Structure* structure, JSWeb
         if (dataSegment->isPassive())
             m_passiveDataSegments.quickSet(dataSegmentIndex);
     }
+    VMInspector::singleton().addJSWebAssemblyInstance(this);
 }
 
 void JSWebAssemblyInstance::finishCreation(VM& vm)

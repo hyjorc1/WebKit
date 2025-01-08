@@ -53,6 +53,15 @@ private:
     VM& m_vm;
     Vector<std::unique_ptr<HeapSnapshot>> m_snapshots;
     HeapAnalyzer* m_activeAnalyzer { nullptr };
+
+public:
+    HeapSnapshot* yijiaMostRecentSnapshot()
+    {
+        if (yijia_snapshots.isEmpty())
+            return nullptr;
+        return yijia_snapshots.last().get();
+    }
+    Vector<std::unique_ptr<HeapSnapshot>> yijia_snapshots;
 };
 
 } // namespace JSC

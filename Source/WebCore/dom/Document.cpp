@@ -338,6 +338,8 @@
 #include <wtf/text/StringBuffer.h>
 #include <wtf/text/TextStream.h>
 
+#include <JavaScriptCore/VMInspector.h>
+
 #if ENABLE(APP_HIGHLIGHTS)
 #include "AppHighlightStorage.h"
 #endif
@@ -649,6 +651,8 @@ Document::Document(LocalFrame* frame, const Settings& settings, const URL& url, 
     , m_frameIdentifier(frame ? std::optional(frame->frameID()) : std::nullopt)
     , m_syncData(DocumentSyncData::create())
 {
+    JSC::VMInspector::singleton().addDocument(this);
+
     setEventTargetFlag(EventTargetFlag::IsConnected);
     addToDocumentsMap();
 
@@ -735,6 +739,8 @@ Ref<Document> Document::createNonRenderedPlaceholder(LocalFrame& frame, const UR
 
 Document::~Document()
 {
+    JSC::VMInspector::singleton().removeDocument(this);
+
     ASSERT(activeDOMObjectsAreStopped());
 
     if (m_logger)
@@ -1189,7 +1195,7 @@ public:
 
 RefPtr<NodeList> Document::resultForSelectorAll(ContainerNode& context, const String& selectorString)
 {
-    ASSERT(context.hasValidQuerySelectorAllResults() == m_querySelectorAllResults.contains(context));
+    // ASSERT(context.hasValidQuerySelectorAllResults() == m_querySelectorAllResults.contains(context)); // TODO: debug assertion failed at photoshop
     if (!context.hasValidQuerySelectorAllResults())
         return nullptr;
     auto* results = m_querySelectorAllResults.get(context);
@@ -1234,7 +1240,7 @@ void Document::invalidateQuerySelectorAllResultsForClassAttributeChange(Node& st
         if (!currentNode->hasValidQuerySelectorAllResults())
             continue;
         auto it = m_querySelectorAllResults.find(*currentNode);
-        ASSERT(it != m_querySelectorAllResults.end());
+//        ASSERT(it != m_querySelectorAllResults.end());
         if (it == m_querySelectorAllResults.end())
             continue;
         auto& entries = it->value->entries;

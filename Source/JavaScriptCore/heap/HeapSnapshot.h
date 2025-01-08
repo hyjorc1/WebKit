@@ -27,14 +27,17 @@
 
 #include "HeapSnapshotBuilder.h"
 #include "TinyBloomFilter.h"
+#include "VerifierSlotVisitor.h"
+#include "WeakGCSetInlines.h"
 #include <wtf/TZoneMalloc.h>
 
 namespace JSC {
 
+
 class HeapSnapshot {
     WTF_MAKE_TZONE_ALLOCATED(HeapSnapshot);
 public:
-    HeapSnapshot(HeapSnapshot*);
+    HeapSnapshot(HeapSnapshot*, VM&);
     ~HeapSnapshot();
 
     HeapSnapshot* previous() const { return m_previous; }
@@ -44,9 +47,14 @@ public:
     void shrinkToFit();
     void finalize();
 
+    WeakGCSet<JSCell>& nodes() { return m_yijia_nodes; }
     bool isEmpty() const { return m_nodes.isEmpty(); }
     std::optional<HeapSnapshotNode> nodeForCell(JSCell*);
     std::optional<HeapSnapshotNode> nodeForObjectIdentifier(unsigned objectIdentifier);
+
+    void moveMarkerData(std::unique_ptr<VerifierSlotVisitor>&);
+    WeakGCSet<JSCell>& roots() { return m_yijia_roots; }
+    VerifierSlotVisitor::MarkerDataSnapshot& markerData() { return *m_markerData.get(); }
 
 private:
     friend class HeapSnapshotBuilder;
@@ -59,6 +67,12 @@ private:
     unsigned m_lastObjectIdentifier { 0 };
     bool m_finalized { false };
     bool m_hasCellsToSweep { false };
+
+public:
+    WeakGCSet<JSCell> m_yijia_nodes;
+    WeakGCSet<JSCell> m_yijia_roots;
+    UncheckedKeyHashMap<JSCell*, HeapSnapshotBuilder::RootData> m_roots;
+    std::unique_ptr<VerifierSlotVisitor::MarkerDataSnapshot> m_markerData;
 };
 
 } // namespace JSC

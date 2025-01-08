@@ -32,6 +32,7 @@
 #pragma once
 
 #include <JavaScriptCore/WeakInlines.h>
+#include <JavaScriptCore/VMInspector.h>
 #include <wtf/TZoneMalloc.h>
 
 namespace WebCore {
@@ -48,8 +49,16 @@ public:
     template<typename Derived>
     static constexpr ptrdiff_t offsetOfWrapper() { return CAST_OFFSET(Derived*, ScriptWrappable*) + OBJECT_OFFSETOF(ScriptWrappable, m_wrapper); }
 
+    ScriptWrappable()
+    {
+        JSC::VMInspector::singleton().addScriptWrapperable(this);
+    }
+    ~ScriptWrappable()
+    {
+        JSC::VMInspector::singleton().removeScriptWrapperable(this);
+    }
+
 protected:
-    ~ScriptWrappable() = default;
 
 private:
     JSC::Weak<JSDOMObject> m_wrapper;

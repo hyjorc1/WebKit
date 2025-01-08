@@ -32,6 +32,7 @@
 #include "WasmLLIntPlan.h"
 #include "WasmModuleInformation.h"
 #include "WasmWorklist.h"
+#include "VMInspector.h"
 
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
@@ -43,6 +44,7 @@ Module::Module(LLIntPlan& plan)
     , m_ipintCallees(IPIntCallees::create(0))
     , m_wasmToJSExitStubs(plan.takeWasmToJSExitStubs())
 {
+    VMInspector::singleton().addWasmModule(this);
 }
 
 Module::Module(IPIntPlan& plan)
@@ -51,9 +53,13 @@ Module::Module(IPIntPlan& plan)
     , m_ipintCallees(IPIntCallees::createFromVector(plan.takeCallees()))
     , m_wasmToJSExitStubs(plan.takeWasmToJSExitStubs())
 {
+    VMInspector::singleton().addWasmModule(this);
 }
 
-Module::~Module() = default;
+Module::~Module()
+{
+    VMInspector::singleton().removeWasmModule(this);
+}
 
 Wasm::TypeIndex Module::typeIndexFromFunctionIndexSpace(FunctionSpaceIndex functionIndexSpace) const
 {

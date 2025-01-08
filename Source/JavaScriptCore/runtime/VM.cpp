@@ -455,6 +455,8 @@ VM::~VM()
 {
     Locker destructionLocker { s_destructionLock.read() };
 
+    VMInspector::singleton().removeVM(this);
+    
     if (vmType == VMType::Default)
         WaiterListManager::singleton().unregister(this);
 

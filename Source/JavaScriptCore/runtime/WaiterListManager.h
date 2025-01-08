@@ -211,7 +211,7 @@ public:
 
     size_t waiterListSize(void* ptr);
 
-    size_t totalWaiterCount();
+    JS_EXPORT_PRIVATE size_t totalWaiterCount();
 
     void unregister(VM*);
     void unregister(JSGlobalObject*);

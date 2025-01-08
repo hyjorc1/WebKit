@@ -103,6 +103,16 @@ public:
 
     // FIXME: Add support for find/contains/remove from a ValueArg* via a HashTranslator.
 
+    bool contains(ValueArg* target)
+    {
+        return m_set.contains(target);
+    }
+    
+    unsigned size()
+    {
+        return m_set.size();
+    }
+    
 private:
     void pruneStaleEntries() final;
 

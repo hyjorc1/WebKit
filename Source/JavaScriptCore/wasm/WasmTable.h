@@ -54,7 +54,7 @@ class Table : public ThreadSafeRefCounted<Table> {
 public:
     static RefPtr<Table> tryCreate(uint32_t initial, std::optional<uint32_t> maximum, TableElementType, Type);
 
-    JS_EXPORT_PRIVATE ~Table() = default;
+    JS_EXPORT_PRIVATE ~Table();
 
     std::optional<uint32_t> maximum() const { return m_maximum; }
     uint32_t length() const { return m_length; }

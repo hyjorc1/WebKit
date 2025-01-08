@@ -26,6 +26,7 @@
 #include "config.h"
 #include "HeapSnapshot.h"
 
+#include "VerifierSlotVisitor.h"
 #include <wtf/DataLog.h>
 #include <wtf/TZoneMallocInlines.h>
 
@@ -33,8 +34,10 @@ namespace JSC {
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(HeapSnapshot);
 
-HeapSnapshot::HeapSnapshot(HeapSnapshot* previousSnapshot)
+HeapSnapshot::HeapSnapshot(HeapSnapshot* previousSnapshot, VM& vm)
     : m_previous(previousSnapshot)
+    , m_yijia_nodes(vm)
+    , m_yijia_roots(vm)
 {
 }
 
@@ -180,6 +183,11 @@ std::optional<HeapSnapshotNode> HeapSnapshot::nodeForObjectIdentifier(unsigned o
     }
 
     return std::nullopt;
+}
+
+void HeapSnapshot::moveMarkerData(std::unique_ptr<VerifierSlotVisitor>& verifier)
+{
+    m_markerData = WTFMove(verifier->m_markerDataSnapshot);
 }
 
 } // namespace JSC

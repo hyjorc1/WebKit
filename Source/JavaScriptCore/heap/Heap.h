@@ -74,6 +74,7 @@ class GigacageAlignedMemoryAllocator;
 class Heap;
 class HeapProfiler;
 class HeapVerifier;
+class HeapSnapshot;
 class IncrementalSweeper;
 class IsoSubspacePerVM;
 class JITStubRoutine;
@@ -601,6 +602,7 @@ public:
 
     // This is a debug function for checking who marked the target cell.
     void dumpVerifierMarkerData(HeapCell*);
+    void moveMarkerData(HeapSnapshot&);
 
 private:
     friend class AllocatingScope;

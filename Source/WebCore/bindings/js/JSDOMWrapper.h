@@ -57,7 +57,7 @@ static const uint8_t JSElementType                   = 0b11110000 | NodeConstant
 static_assert(JSDOMWrapperType > JSC::LastJSCObjectType, "JSC::JSType offers the highest bit.");
 static_assert(NodeConstants::LastNodeType <= JSNodeTypeMask, "NodeType should be represented in 4bit.");
 
-class JSDOMObject : public JSC::JSDestructibleObject {
+class JSDOMObject : public JSC::JSDestructibleObject { // TODO
 public:
     typedef JSC::JSDestructibleObject Base;
 

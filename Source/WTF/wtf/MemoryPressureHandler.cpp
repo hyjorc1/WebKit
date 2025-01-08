@@ -194,9 +194,9 @@ void MemoryPressureHandler::shrinkOrDie(size_t killThreshold)
         return;
     }
 
-    WTFLogAlways("Unable to shrink memory footprint of process (%zu MB) below the kill thresold (%zu MB). Killed\n", footprint / MB, killThreshold / MB);
-    RELEASE_ASSERT(m_memoryKillCallback);
-    m_memoryKillCallback();
+    // WTFLogAlways("Unable to shrink memory footprint of process (%zu MB) below the kill thresold (%zu MB). Killed\n", footprint / MB, killThreshold / MB);
+    // RELEASE_ASSERT(m_memoryKillCallback);
+    // m_memoryKillCallback();
 }
 
 void MemoryPressureHandler::setMemoryUsagePolicyBasedOnFootprint(size_t footprint)
