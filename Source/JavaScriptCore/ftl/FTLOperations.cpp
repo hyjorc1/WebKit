@@ -103,7 +103,7 @@ JSC_DEFINE_NOEXCEPT_JIT_OPERATION(operationPopulateObjectInOSR, void, (JSGlobalO
         }
 
         // This might be unnecessary because operationMaterializeObjectInOSR does DeferGCForAWhile but its better to be safe.
-        if (hasContiguous(materialization->indexingType()))
+        if (hasContiguous(array->indexingType()) || hasAnyArrayStorage(array->indexingType()))
             vm.writeBarrier(array);
         break;
     }
